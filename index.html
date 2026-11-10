@@ -115,7 +115,7 @@ tr.somme td { font-weight: 600; }
     </div>
     <div class="panneaux" aria-label="Aménagement">
       <h2>Aménagement</h2>
-      <p style="color:var(--muted);font-size:13px">3 propositions pour placer frigo, plaque à induction, four, micro-ondes, évier (là où arrive l'eau) et plan de travail. Le détail de chaque meuble est plus bas.</p>
+      <p style="color:var(--muted);font-size:13px">4 propositions (la 4e = ton plan) pour placer frigo, plaque à induction, four, micro-ondes, évier (là où arrive l'eau) et plan de travail. Le détail de chaque meuble est plus bas.</p>
       <div class="zones" id="amenagements" role="group" aria-label="Choisir une proposition"></div>
       <div class="group">
         <label class="chip on"><input type="checkbox" id="opt-hauts" checked> Meubles hauts</label>
@@ -258,7 +258,7 @@ tr.somme td { font-weight: 600; }
   controls.minDistance = 0.8;
   controls.maxDistance = 25;
 
-  var VERSION = '13';
+  var VERSION = '14';
   var calques = {};
   var profils = [], profilsOn = true, modeleCharge = false;
   var liste = null, cacheTex = {}, pieces = [], calep = null;
@@ -477,7 +477,7 @@ tr.somme td { font-weight: 600; }
     if (calep && liste) majPlan();
   });
   // ---------- aménagement, étiquettes, lumière
-  var amen = null, amenActive = 'Cuisine 1', ambiance = 'jour';
+  var amen = null, amenActive = 'Cuisine 4', ambiance = 'jour';
   var etiquettes = [], ledObjs = [], ledLights = [], plafonniers = [];
   var AMB = [
     { id: 'jour', nom: 'Jour', sm: 'lumière du jour' },
@@ -588,10 +588,10 @@ tr.somme td { font-weight: 600; }
   }
 
   function appliquerAmen() {
-    ['Cuisine 1', 'Cuisine 2', 'Cuisine 3'].forEach(function (n) { if (calques[n]) calques[n].visible = n === amenActive; });
+    Object.keys(calques).filter(function (n) { return /^Cuisine /.test(n); }).forEach(function (n) { if (calques[n]) calques[n].visible = n === amenActive; });
     var hauts = document.getElementById('opt-hauts').checked, cred = document.getElementById('opt-credence').checked;
     var lh = document.getElementById('led-haut').checked, lp = document.getElementById('led-plinthe').checked, lc = document.getElementById('led-plafond').checked;
-    ['Cuisine 1', 'Cuisine 2', 'Cuisine 3', 'Éclairage'].forEach(function (n) {
+    Object.keys(calques).filter(function (n) { return /^Cuisine /.test(n); }).concat(['Éclairage']).forEach(function (n) {
       var c = calques[n]; if (!c) return;
       c.traverse(function (o) {
         if (o === c || !o.name) return;
