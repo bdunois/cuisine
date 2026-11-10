@@ -218,7 +218,7 @@ tr.somme td { font-weight: 600; }
   controls.minDistance = 0.8;
   controls.maxDistance = 25;
 
-  var VERSION = '9';
+  var VERSION = '10';
   var calques = {};
   var panneauxObjs = [], panneauMats = [], profils = [], profilsOn = true, modeleCharge = false;
   var liste = null, actuel = -1, cacheTex = {};
@@ -351,7 +351,7 @@ tr.somme td { font-weight: 600; }
           ['À découper', (function () {
             var parts = [];
             if (coupeL > 1) parts.push('largeur : enlever ' + cm(coupeL) + ' cm côté ' + (c.ox > 0 ? 'gauche' : 'droit') + ' de la plaque');
-            if (c.oz > coupeH + 1) parts.push('hauteur : plaque descendue de ' + cm(c.oz) + ' cm pour raccorder le motif → coupez-la à ' + cm(c.oz) + ' cm de son bas ; le grand morceau (' + cm(PH - c.oz) + ' cm) se pose en bas du mur, le petit morceau, recoupé à ' + cm(c.oz - coupeH) + ' cm, se pose au-dessus');
+            if (c.oz > coupeH + 1) parts.push('hauteur : plaque descendue de ' + cm(c.oz) + ' cm pour raccorder le motif → coupez-la à ' + cm(c.oz) + ' cm de son bas ; le morceau du haut de la plaque (' + cm(PH - c.oz) + ' cm) se pose en bas du mur, le morceau du bas, recoupé à ' + cm(c.oz - coupeH) + ' cm, se pose au-dessus');
             else if (coupeH > 1) parts.push('hauteur : enlever ' + (c.oz > 0 && c.oz < coupeH ? cm(c.oz) + ' cm en bas et ' + cm(coupeH - c.oz) + ' cm en haut' : cm(coupeH) + ' cm ' + (c.oz > 0 ? 'en bas' : 'en haut')));
             return parts.length ? 'oui → ' + cm(q.w) + ' × ' + cm(HP) + ' cm (' + parts.join(' ; ') + ')' : 'non';
           })()],
