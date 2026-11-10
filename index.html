@@ -127,7 +127,7 @@ tr.somme td { font-weight: 600; }
 
   <section aria-label="Plan de pose">
     <h2>Plan de pose du panneau choisi</h2>
-    <p style="color:var(--muted);font-size:14px">Calculé pour que les veines se suivent d'une plaque à l'autre. Les plaques se collent bout à bout ; les profilés alu ne vont qu'autour des portes et de la fenêtre. Un panneau imprimé ne peut pas être retourné en miroir : seule la rotation de 180° est possible. Cotes provisoires.</p>
+    <p style="color:var(--muted);font-size:14px">Calculé pour que les motifs se suivent d'une plaque à l'autre : pour chaque plaque, on a essayé les 2 sens de pose, le côté gardé quand elle est recoupée et la hauteur de coupe (par pas de 2 cm), et gardé la pose où les jonctions se voient le moins. Avec des plaques identiques, une veine très marquée ne peut pas se prolonger parfaitement : les étoiles ★ indiquent si le panneau se raccorde bien. Les plaques se collent bout à bout ; les profilés alu ne vont qu'autour des portes et de la fenêtre. Un panneau imprimé ne peut pas être retourné en miroir : seule la rotation de 180° est possible. Cotes provisoires.</p>
     <div class="pose" id="pose"></div>
     <h2>Prix</h2>
     <div class="table-wrap"><table><thead><tr><th>Article</th><th>Quantité</th><th>Total</th></tr></thead><tbody id="total"></tbody></table></div>
@@ -218,7 +218,7 @@ tr.somme td { font-weight: 600; }
   controls.minDistance = 0.8;
   controls.maxDistance = 25;
 
-  var VERSION = '7';
+  var VERSION = '8';
   var calques = {};
   var panneauxObjs = [], panneauMats = [], profils = [], profilsOn = true, modeleCharge = false;
   var liste = null, actuel = -1, cacheTex = {};
@@ -239,7 +239,8 @@ tr.somme td { font-weight: 600; }
       b.title = p.nom;
       var im = document.createElement('img'); im.src = p.vignette; im.alt = p.ref; im.loading = 'lazy';
       var t = document.createElement('span'); t.textContent = p.ref + ' · ' + (p.prix || '').replace('.00', '').replace(' ', '');
-      b.appendChild(im); b.appendChild(t);
+      var st = document.createElement('span'); st.textContent = '★★★'.slice(0, p.raccord || 2) + '☆☆☆'.slice(0, 3 - (p.raccord || 2)); st.title = 'Raccord des motifs';
+      b.appendChild(im); b.appendChild(t); b.appendChild(st);
       b.addEventListener('click', function () { choisir(i); });
       bande.appendChild(b);
     });
@@ -303,7 +304,10 @@ tr.somme td { font-weight: 600; }
 
   function appliquerTexture(t, p) {
     if (!calep || !pieces.length) return;
-    var seq = calculerPose(t.image);
+    var seq = p.pose ? p.pose.map(function (q) {
+      var mw = calep.murs.filter(function (m) { return m.mur === q.mur; })[0];
+      return { L: q.mur, j: q.plaque, w: q.largeur, nomMur: mw ? mw.nom : '', choix: { rot: q.rot, ox: q.ox, oz: q.oz } };
+    }) : calculerPose(t.image);
     var PW = calep.plaque_mm[0] / 1000, PH = calep.plaque_mm[1] / 1000;
     seq.forEach(function (q) {
       var c = q.choix;
@@ -405,7 +409,8 @@ tr.somme td { font-weight: 600; }
     if (!premier) tb.scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'smooth' });
     info.innerHTML = '';
     var s1 = document.createElement('strong'); s1.textContent = p.ref;
-    var s2 = document.createElement('span'); s2.textContent = p.nom + (p.prix ? ' · ' + p.prix + ' la plaque' : '') + (p.approx ? ' · texture approximative' : '');
+    var RAC = { 3: 'raccord des motifs ★★★ : jonctions presque invisibles', 2: 'raccord des motifs ★★☆ : jonctions discrètes', 1: 'raccord des motifs ★☆☆ : motif très marqué, les jonctions se voient' };
+    var s2 = document.createElement('span'); s2.textContent = p.nom + (p.prix ? ' · ' + p.prix.replace('.00', '') + ' la plaque' : '') + ' · ' + RAC[p.raccord || 2] + (p.approx ? ' · texture approximative' : '');
     var a = document.createElement('a'); a.href = p.url; a.target = '_blank'; a.rel = 'noopener'; a.textContent = 'Acheter ce panneau sur homedesign59.fr ↗';
     info.appendChild(s1); info.appendChild(s2); info.appendChild(a);
     history.replaceState(null, '', '#' + p.ref);
