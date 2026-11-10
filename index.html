@@ -1,0 +1,305 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<title>Plan de la cuisine</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap">
+<style>
+/* Mise en page : une colonne, noir et blanc, sans décor */
+:root {
+  --bg: #ffffff; --fg: #000000; --muted: #555555; --line: #000000; --soft: #f2f2f2;
+  --f: "Inter", system-ui, -apple-system, "Segoe UI", Arial, sans-serif;
+  --f-mono: ui-monospace, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #000000; --fg: #ffffff; --muted: #aaaaaa; --line: #ffffff; --soft: #161616; color-scheme: dark } }
+:root[data-theme="dark"] { --bg: #000000; --fg: #ffffff; --muted: #aaaaaa; --line: #ffffff; --soft: #161616; color-scheme: dark }
+body { background: var(--bg); color: var(--fg); font: 15px/1.55 var(--f); }
+.page { max-width: 900px; margin: 0 auto; padding-block: 24px 48px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: grid; gap: 32px; }
+h1, h2 { font-weight: 600; margin: 0; text-wrap: balance; }
+h1 { font-size: 28px; line-height: 1.15; }
+h2 { font-size: 18px; }
+.eyebrow { font-size: 13px; color: var(--muted); }
+header { display: grid; gap: 8px; }
+.notice { font-size: 14px; max-width: 65ch; border: 1px solid var(--line); padding: 8px 12px; }
+section { display: grid; gap: 12px; min-width: 0; }
+.viewer { position: relative; background: var(--soft); border: 1px solid var(--line); overflow: hidden;
+  height: clamp(340px, 62vh, 620px); touch-action: none; }
+.viewer canvas { display: block; width: 100%; height: 100%; }
+.viewer .status { position: absolute; inset: 0; display: grid; place-items: center; color: var(--muted); font-size: 14px; pointer-events: none; }
+.hint { position: absolute; left: 10px; bottom: 8px; font-size: 12px; color: var(--muted); pointer-events: none; }
+.tools { display: flex; flex-wrap: wrap; gap: 8px; }
+.tools .group { display: flex; flex-wrap: wrap; gap: 8px; }
+.tools .sep { flex-basis: 100%; height: 0; }
+button.chip, label.chip { font: 500 14px var(--f); color: var(--fg); background: var(--bg); border: 1px solid var(--line);
+  padding: 8px 14px; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; user-select: none; border-radius: 0; }
+button.chip:focus-visible, label.chip:focus-within { outline: 2px solid var(--fg); outline-offset: 2px; }
+button.chip:active { background: var(--fg); color: var(--bg); }
+label.chip input { accent-color: var(--fg); margin: 0; width: 16px; height: 16px; }
+label.chip.on { background: var(--fg); color: var(--bg); }
+.chip .vide { font-size: 12px; opacity: .7; }
+figure { margin: 0; display: grid; gap: 8px; }
+figure img { border: 1px solid var(--line); width: 100%; }
+figcaption { color: var(--muted); font-size: 14px; max-width: 65ch; }
+.table-wrap { overflow-x: auto; border: 1px solid var(--line); }
+table { border-collapse: collapse; width: 100%; min-width: 440px; font-size: 14px; }
+th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--line); vertical-align: baseline; }
+th { font-weight: 600; }
+tr:last-child td { border-bottom: 0; }
+td.cote { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.tag { font-size: 12px; padding: 1px 8px; white-space: nowrap; border: 1px solid var(--line); }
+.tag.sure { background: var(--fg); color: var(--bg); }
+.tag.guess { background: var(--bg); color: var(--fg); }
+.two { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+@media (max-width: 720px) { .two { grid-template-columns: minmax(0, 1fr); } }
+p { margin: 0; max-width: 65ch; }
+footer { color: var(--muted); font-size: 13px; }
+</style>
+
+<style>html,body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+</head>
+<body>
+<div class="page">
+  <header>
+    <span class="eyebrow">Plan 3D · cotes en millimètres</span>
+    <h1>Plan de la cuisine</h1>
+    <div class="notice"><strong>Provisoire.</strong> <span>Quatre longueurs de murs sont mesurées ; les autres cotes sont supposées en attendant le relevé (voir le tableau).</span></div>
+  </header>
+
+  <section aria-label="Maquette 3D">
+    <div class="viewer" id="viewer">
+      <canvas id="scene" aria-label="Maquette 3D de la cuisine, à tourner au doigt ou à la souris"></canvas>
+      <div class="status" id="status">Chargement de la maquette…</div>
+      <div class="hint" id="hint">1 doigt : tourner · 2 doigts : zoomer / déplacer</div>
+    </div>
+    <div class="tools">
+      <div class="group" role="group" aria-label="Plans">
+        <label class="chip" id="chip-Meubles"><input type="checkbox" id="calque-meubles" data-calque="Meubles" checked> Meubles <span class="vide" hidden>vide pour l'instant</span></label>
+        <label class="chip" id="chip-Eau"><input type="checkbox" id="calque-eau" data-calque="Eau"> Eau <span class="vide" hidden>vide pour l'instant</span></label>
+        <label class="chip" id="chip-Électricité"><input type="checkbox" id="calque-elec" data-calque="Électricité"> Électricité <span class="vide" hidden>vide pour l'instant</span></label>
+      </div>
+      <div class="sep"></div>
+      <div class="group" role="group" aria-label="Vues">
+        <button class="chip" id="vue-3d" type="button">Vue 3D</button>
+        <button class="chip" id="vue-dessus" type="button">Vue de dessus</button>
+        <button class="chip" id="vue-entree" type="button">Depuis l'entrée</button>
+        <label class="chip"><input type="checkbox" id="plafond"> Plafond</label>
+      </div>
+    </div>
+    <p style="color:var(--muted);font-size:14px">Les murs côté caméra s'effacent pour voir l'intérieur. Avec Eau ou Électricité, les murs deviennent transparents pour montrer ce qui passe dedans.</p>
+  </section>
+
+  <section>
+    <h2>Plan coté</h2>
+    <figure>
+      <img src="plan.png" alt="Plan vu de dessus : mur C fenêtre 2360 mm en haut, mur D grand mur 4080 mm à gauche, mur B évier et terrasse 4830 mm à droite, mur A en biais 2476 mm en bas avec la porte d'entrée" loading="lazy">
+      <figcaption>Les murs sont nommés A, B, C, D. Sur chaque mur, « 0 → » marque le coin d'où partent les mesures quand on est dans la pièce face à ce mur ; les hauteurs se prennent depuis le sol fini.</figcaption>
+    </figure>
+  </section>
+
+  <section>
+    <h2>Cotes</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Élément</th><th>Cote (mm)</th><th>Statut</th></tr></thead>
+        <tbody>
+          <tr><td>Mur C, sous la fenêtre (nord)</td><td class="cote">2360</td><td><span class="tag sure">mesuré</span></td></tr>
+          <tr><td>Mur D, grand mur (à gauche en entrant)</td><td class="cote">4080</td><td><span class="tag sure">mesuré</span></td></tr>
+          <tr><td>Mur B, partie « après évier »</td><td class="cote">1670</td><td><span class="tag sure">mesuré</span></td></tr>
+          <tr><td>Mur B, partie évier</td><td class="cote">1660</td><td><span class="tag sure">mesuré</span></td></tr>
+          <tr><td>Poteau / conduit (largeur × saillie)</td><td class="cote">300 × 250</td><td><span class="tag guess">supposé</span></td></tr>
+          <tr><td>Porte terrasse (largeur × hauteur)</td><td class="cote">1150 × 2150</td><td><span class="tag guess">supposé</span></td></tr>
+          <tr><td>Porte d'entrée (largeur × hauteur)</td><td class="cote">830 × 2040</td><td><span class="tag guess">supposé</span></td></tr>
+          <tr><td>Fenêtre (largeur × hauteur, allège)</td><td class="cote">1000 × 1150, 1000</td><td><span class="tag guess">supposé</span></td></tr>
+          <tr><td>Hauteur sous plafond</td><td class="cote">2500</td><td><span class="tag guess">supposé</span></td></tr>
+          <tr><td>Mur B en entier (côté évier et terrasse)</td><td class="cote">4830</td><td><span class="tag guess">supposé</span></td></tr>
+          <tr><td>Mur A, en biais (porte d'entrée)</td><td class="cote">2476</td><td><span class="tag guess">supposé</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <h2>Sol</h2>
+    <div class="two">
+      <figure>
+        <img src="carreaux.webp" alt="Trois carreaux échantillons : rouge sang de bœuf, beige moucheté, terre cuite" loading="lazy">
+        <figcaption>Les trois carreaux choisis.</figcaption>
+      </figure>
+      <p>Pose au hasard des trois teintes : jamais trois carreaux de la même couleur côte à côte, et les paires restent rares et irrégulières. Chaque carreau est tourné au hasard. Format supposé : 200 × 200 mm, joint de 3 mm.</p>
+    </div>
+  </section>
+
+  <footer>Maquette faite avec Blender. Les plans eau et électricité servent à préparer les travaux ; l'installation électrique suit la norme NF C 15-100.</footer>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script>
+(function () {
+  var viewer = document.getElementById('viewer');
+  var canvas = document.getElementById('scene');
+  var statusEl = document.getElementById('status');
+  if (!window.THREE || !THREE.GLTFLoader || !THREE.OrbitControls) {
+    statusEl.textContent = "La 3D n'a pas pu se charger. Recharge la page.";
+    return;
+  }
+  var renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  renderer.outputEncoding = THREE.sRGBEncoding;
+  var scene = new THREE.Scene();
+  function fond() {
+    var c = getComputedStyle(document.documentElement).getPropertyValue('--soft').trim() || '#f2f2f2';
+    scene.background = new THREE.Color(c);
+  }
+  fond();
+  if (window.matchMedia) {
+    var mq = window.matchMedia('(prefers-color-scheme: dark)');
+    if (mq.addEventListener) mq.addEventListener('change', fond);
+  }
+  new MutationObserver(fond).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+
+  scene.add(new THREE.HemisphereLight(0xffffff, 0x8a847c, 0.95));
+  var sun = new THREE.DirectionalLight(0xffffff, 0.75);
+  sun.position.set(-3, 8, 4);
+  scene.add(sun);
+
+  var camera = new THREE.PerspectiveCamera(45, 1, 0.05, 200);
+  var controls = new THREE.OrbitControls(camera, canvas);
+  controls.enableDamping = true;
+  controls.maxPolarAngle = Math.PI * 0.49;
+  controls.minDistance = 0.8;
+  controls.maxDistance = 25;
+
+  var calques = {};
+  var murs = [];
+  var plafond = null;
+  var structureMats = [];
+  var centre = new THREE.Vector3(), taille = new THREE.Vector3(), hauteur = 2.5;
+
+  function nomCalque(n) { return n.replace(/^CALQUE_?/, '').replace(/_/g, ' '); }
+
+  new THREE.GLTFLoader().load('cuisine.glb', function (g) {
+    var root = g.scene;
+    scene.add(root);
+    root.traverse(function (o) {
+      if (/^CALQUE/.test(o.name)) calques[nomCalque(o.name)] = o;
+      var m = /^Mur_([A-Z])$/.exec(o.name);
+      if (m && o.isMesh) murs.push({ lettre: m[1], obj: o });
+      if (o.isMesh && o.material) {
+        o.material.side = THREE.DoubleSide;
+      }
+    });
+    root.traverse(function (o) {
+      var v = /^Vitre_mur_([A-Z])$/.exec(o.name);
+      if (v) murs.forEach(function (w) { if (w.lettre === v[1]) w.vitre = o; });
+    });
+    var st = calques['Structure'];
+    if (st) st.traverse(function (o) {
+      if (o.isMesh && !/^Vitre/.test(o.name)) {
+        var mats = Array.isArray(o.material) ? o.material : [o.material];
+        mats.forEach(function (mt) { if (structureMats.indexOf(mt) < 0) structureMats.push(mt); });
+      }
+    });
+    plafond = calques['Plafond'] || null;
+    if (plafond) plafond.visible = false;
+
+    var sol = root.getObjectByName('Sol') || root;
+    new THREE.Box3().setFromObject(sol).getCenter(centre);
+    new THREE.Box3().setFromObject(st || root).getSize(taille);
+    hauteur = taille.y || 2.5;
+    murs.forEach(function (w) {
+      var b = new THREE.Box3().setFromObject(w.obj);
+      w.c = b.getCenter(new THREE.Vector3());
+      w.out = new THREE.Vector3(w.c.x - centre.x, 0, w.c.z - centre.z).normalize();
+    });
+
+    document.querySelectorAll('[data-calque]').forEach(function (cb) {
+      var obj = calques[cb.dataset.calque];
+      var vide = !obj || !obj.children.some(function (c) { var n = 0; c.traverse(function (x) { if (x.isMesh) n++; }); return n > 0; });
+      var chip = cb.closest('.chip');
+      chip.querySelector('.vide').hidden = !vide;
+      cb.addEventListener('change', appliquer);
+    });
+    appliquer();
+    vue('3d');
+    statusEl.hidden = true;
+  }, undefined, function () {
+    statusEl.textContent = "La maquette n'a pas pu se charger. Recharge la page.";
+  });
+
+  function appliquer() {
+    var technique = false;
+    document.querySelectorAll('[data-calque]').forEach(function (cb) {
+      var obj = calques[cb.dataset.calque];
+      if (obj) obj.visible = cb.checked;
+      cb.closest('.chip').classList.toggle('on', cb.checked);
+      if (cb.checked && cb.dataset.calque !== 'Meubles') technique = true;
+    });
+    structureMats.forEach(function (mt) {
+      mt.transparent = technique;
+      mt.opacity = technique ? 0.3 : 1;
+      mt.depthWrite = !technique;
+      mt.needsUpdate = true;
+    });
+  }
+
+  document.getElementById('plafond').addEventListener('change', function (e) {
+    if (plafond) plafond.visible = e.target.checked;
+    e.target.closest('.chip').classList.toggle('on', e.target.checked);
+  });
+
+  function vue(nom) {
+    var r = Math.max(taille.x, taille.z, 3);
+    var cible = new THREE.Vector3(centre.x, hauteur * 0.3, centre.z);
+    if (nom === 'dessus') {
+      camera.position.set(centre.x, r * 2.1, centre.z + 0.001);
+    } else if (nom === 'entree') {
+      var bas = murs.filter(function (w) { return w.lettre === 'A'; })[0];
+      var p = bas ? bas.c.clone().add(bas.out.clone().multiplyScalar(-0.6)) : new THREE.Vector3(centre.x, 0, centre.z + r / 2);
+      camera.position.set(p.x, 1.6, p.z);
+      cible.set(centre.x, 1.2, centre.z - r * 0.25);
+    } else {
+      camera.position.set(centre.x - r * 0.85, r * 1.15, centre.z + r * 0.95);
+    }
+    controls.target.copy(cible);
+    controls.update();
+  }
+  document.getElementById('vue-3d').addEventListener('click', function () { vue('3d'); });
+  document.getElementById('vue-dessus').addEventListener('click', function () { vue('dessus'); });
+  document.getElementById('vue-entree').addEventListener('click', function () { vue('entree'); });
+
+  function taillecanvas() {
+    var w = viewer.clientWidth, h = viewer.clientHeight;
+    renderer.setSize(w, h, false);
+    camera.aspect = w / Math.max(h, 1);
+    camera.updateProjectionMatrix();
+  }
+  if (window.ResizeObserver) new ResizeObserver(taillecanvas).observe(viewer);
+  window.addEventListener('resize', taillecanvas);
+  taillecanvas();
+
+  var tmp = new THREE.Vector3();
+  function boucle() {
+    requestAnimationFrame(boucle);
+    controls.update();
+    var dedans = camera.position.y < hauteur && Math.abs(camera.position.x - centre.x) < taille.x / 2 && Math.abs(camera.position.z - centre.z) < taille.z / 2;
+    murs.forEach(function (w) {
+      tmp.set(camera.position.x - w.c.x, 0, camera.position.z - w.c.z);
+      var cache = !dedans && camera.position.y < hauteur * 4 && tmp.dot(w.out) > 0.05;
+      w.obj.visible = !cache;
+      if (w.vitre) w.vitre.visible = !cache;
+    });
+    renderer.render(scene, camera);
+  }
+  boucle();
+})();
+</script>
+
+</body>
+</html>
