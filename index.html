@@ -117,6 +117,7 @@ tr.somme td { font-weight: 600; }
           <label class="chip on" id="chip-profils"><input type="checkbox" id="profils" checked> Profilés alu</label>
         </div>
       </div>
+      <p style="color:var(--muted);font-size:13px">HDM + numéro = la référence du panneau sur le site Home Design 59 (homedesign59.fr). Touche un panneau pour le voir sur les murs.</p>
       <div class="actuel" id="actuel">Chargement des panneaux…</div>
       <div class="bande" id="bande" role="group" aria-label="Choisir un panneau"></div>
       <p style="color:var(--muted);font-size:13px">Panneaux PVC 260 × 122 cm et profilés aluminium argent de Home Design 59, posés sur les 4 murs. Les profilés sont dessinés entre chaque panneau (largeur supposée 2 cm).</p>
@@ -217,7 +218,7 @@ tr.somme td { font-weight: 600; }
   controls.minDistance = 0.8;
   controls.maxDistance = 25;
 
-  var VERSION = '5';
+  var VERSION = '6';
   var calques = {};
   var panneauxObjs = [], panneauMats = [], profils = [], profilsOn = true, modeleCharge = false;
   var liste = null, actuel = -1, cacheTex = {};
@@ -327,6 +328,9 @@ tr.somme td { font-weight: 600; }
   function afficherPose(seq, p) {
     var PW = calep.plaque_mm[0], PH = calep.plaque_mm[1], HP = calep.hauteur_posee_mm;
     var box = document.getElementById('pose'); box.innerHTML = '';
+    var lien = document.createElement('p'); lien.style.margin = '0';
+    var la = document.createElement('a'); la.href = p.url; la.target = '_blank'; la.rel = 'noopener'; la.style.color = 'inherit'; la.style.fontWeight = '600';
+    la.textContent = 'Panneau ' + p.ref + ' : acheter sur homedesign59.fr ↗'; lien.appendChild(la); box.appendChild(lien);
     var parMur = {};
     seq.forEach(function (q) { (parMur[q.L] = parMur[q.L] || []).push(q); });
     ORDRE.forEach(function (L) {
@@ -361,11 +365,16 @@ tr.somme td { font-weight: 600; }
     var prixP = parseFloat((p.prix || '59').replace(',', '.')) || 59;
     var nP = calep.plaques_sans_chutes, nPc = calep.plaques_avec_chutes, nB = calep.barres_profil, nC = nP * 2;
     var tot = document.getElementById('total'); tot.innerHTML = '';
-    [['Plaques ' + p.ref, nP + ' × ' + prixP.toFixed(2).replace('.', ',') + ' €', nP * prixP],
-     ['Profilés alu 260 cm (autour des portes et de la fenêtre)', nB + ' × 8,90 €', nB * 8.9],
-     ['Colle polymère MS 300 ml (2 par plaque)', nC + ' × 6,90 €', nC * 6.9]].forEach(function (l) {
+    [['Panneau PVC ' + p.ref + ' (260 × 122 cm)', nP + ' × ' + prixP.toFixed(2).replace('.', ',') + ' €', nP * prixP, p.url],
+     ['Profilé de finition aluminium 260 cm (autour des portes et de la fenêtre)', nB + ' × 8,90 €', nB * 8.9, 'https://homedesign59.fr/produit/profile-de-finition-aluminium-pour-panneau-pvc/'],
+     ['Colle et joint polymère MS 300 ml (2 par plaque)', nC + ' × 6,90 €', nC * 6.9, 'https://homedesign59.fr/produit/colle-joint-polymere-ms-300-ml/']].forEach(function (l) {
       var tr = document.createElement('tr');
-      [l[0], l[1], l[2].toFixed(2).replace('.', ',') + ' €'].forEach(function (v, i) { var td = document.createElement('td'); td.textContent = v; if (i) td.className = 'cote'; tr.appendChild(td); });
+      [l[0], l[1], l[2].toFixed(2).replace('.', ',') + ' €'].forEach(function (v, i) {
+        var td = document.createElement('td');
+        if (i === 0) { var a = document.createElement('a'); a.href = l[3]; a.target = '_blank'; a.rel = 'noopener'; a.textContent = v + ' ↗'; a.style.color = 'inherit'; td.appendChild(a); }
+        else { td.textContent = v; td.className = 'cote'; }
+        tr.appendChild(td);
+      });
       tot.appendChild(tr);
     });
     var somme = nP * prixP + nB * 8.9 + nC * 6.9;
@@ -396,7 +405,7 @@ tr.somme td { font-weight: 600; }
     info.innerHTML = '';
     var s1 = document.createElement('strong'); s1.textContent = p.ref;
     var s2 = document.createElement('span'); s2.textContent = p.nom + (p.prix ? ' · ' + p.prix + ' la plaque' : '') + (p.approx ? ' · texture approximative' : '');
-    var a = document.createElement('a'); a.href = p.url; a.target = '_blank'; a.rel = 'noopener'; a.textContent = 'Voir sur le site ↗';
+    var a = document.createElement('a'); a.href = p.url; a.target = '_blank'; a.rel = 'noopener'; a.textContent = 'Acheter ce panneau sur homedesign59.fr ↗';
     info.appendChild(s1); info.appendChild(s2); info.appendChild(a);
     history.replaceState(null, '', '#' + p.ref);
     if (cacheTex[p.ref]) { appliquerTexture(cacheTex[p.ref], p); return; }
