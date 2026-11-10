@@ -127,7 +127,7 @@ tr.somme td { font-weight: 600; }
 
   <section aria-label="Plan de pose">
     <h2>Plan de pose du panneau choisi</h2>
-    <p style="color:var(--muted);font-size:14px">Calculé pour que les motifs se suivent d'une plaque à l'autre : pour chaque plaque, on a essayé les 2 sens de pose, le côté gardé quand elle est recoupée et la hauteur de coupe (par pas de 2 cm), et gardé la pose où les jonctions se voient le moins. Avec des plaques identiques, une veine très marquée ne peut pas se prolonger parfaitement : les étoiles ★ indiquent si le panneau se raccorde bien. Les plaques se collent bout à bout ; les profilés alu ne vont qu'autour des portes et de la fenêtre. Un panneau imprimé ne peut pas être retourné en miroir : seule la rotation de 180° est possible. Cotes provisoires.</p>
+    <p style="color:var(--muted);font-size:14px">Calculé pour que les motifs se suivent d'une plaque à l'autre : pour chaque plaque, on a essayé les 2 sens de pose, le côté gardé quand elle est recoupée et la hauteur de coupe (par pas de 2 cm). Quand ça raccorde mieux, une plaque peut être descendue : ce qui dépasse en bas est coupé et reposé au-dessus (même plaque, une coupe horizontale en plus). On garde la pose où les jonctions se voient le moins. Avec des plaques identiques, une veine très marquée ne peut pas se prolonger parfaitement : les étoiles ★ indiquent si le panneau se raccorde bien. Les plaques se collent bout à bout ; les profilés alu ne vont qu'autour des portes et de la fenêtre. Un panneau imprimé ne peut pas être retourné en miroir : seule la rotation de 180° est possible. Cotes provisoires.</p>
     <div class="pose" id="pose"></div>
     <h2>Prix</h2>
     <div class="table-wrap"><table><thead><tr><th>Article</th><th>Quantité</th><th>Total</th></tr></thead><tbody id="total"></tbody></table></div>
@@ -218,7 +218,7 @@ tr.somme td { font-weight: 600; }
   controls.minDistance = 0.8;
   controls.maxDistance = 25;
 
-  var VERSION = '8';
+  var VERSION = '9';
   var calques = {};
   var panneauxObjs = [], panneauMats = [], profils = [], profilsOn = true, modeleCharge = false;
   var liste = null, actuel = -1, cacheTex = {};
@@ -313,7 +313,7 @@ tr.somme td { font-weight: 600; }
       var c = q.choix;
       pieces.filter(function (x) { return x.L === q.L && x.j === q.j; }).forEach(function (x) {
         var tx = t.clone();
-        tx.flipY = false; tx.encoding = THREE.sRGBEncoding; tx.wrapS = tx.wrapT = THREE.ClampToEdgeWrapping;
+        tx.flipY = false; tx.encoding = THREE.sRGBEncoding; tx.wrapS = THREE.ClampToEdgeWrapping; tx.wrapT = THREE.RepeatWrapping;
         tx.anisotropy = renderer.capabilities.getMaxAnisotropy();
         tx.matrixAutoUpdate = false;
         var a = 1 / PW, b = 1 / PH, ox = c.ox / 1000, oz = c.oz / 1000;
@@ -351,7 +351,8 @@ tr.somme td { font-weight: 600; }
           ['À découper', (function () {
             var parts = [];
             if (coupeL > 1) parts.push('largeur : enlever ' + cm(coupeL) + ' cm côté ' + (c.ox > 0 ? 'gauche' : 'droit') + ' de la plaque');
-            if (coupeH > 1) parts.push('hauteur : enlever ' + (c.oz > 0 && c.oz < coupeH ? cm(c.oz) + ' cm en bas et ' + cm(coupeH - c.oz) + ' cm en haut' : cm(coupeH) + ' cm ' + (c.oz > 0 ? 'en bas' : 'en haut')));
+            if (c.oz > coupeH + 1) parts.push('hauteur : plaque descendue de ' + cm(c.oz) + ' cm pour raccorder le motif → coupez-la à ' + cm(c.oz) + ' cm de son bas ; le grand morceau (' + cm(PH - c.oz) + ' cm) se pose en bas du mur, le petit morceau, recoupé à ' + cm(c.oz - coupeH) + ' cm, se pose au-dessus');
+            else if (coupeH > 1) parts.push('hauteur : enlever ' + (c.oz > 0 && c.oz < coupeH ? cm(c.oz) + ' cm en bas et ' + cm(coupeH - c.oz) + ' cm en haut' : cm(coupeH) + ' cm ' + (c.oz > 0 ? 'en bas' : 'en haut')));
             return parts.length ? 'oui → ' + cm(q.w) + ' × ' + cm(HP) + ' cm (' + parts.join(' ; ') + ')' : 'non';
           })()],
           ['Rotation', c.rot ? 'oui : 180° (posée tête en bas)' : 'non (à l\'endroit)'],
