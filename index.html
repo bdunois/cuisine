@@ -190,7 +190,7 @@ footer { color: var(--muted); font-size: 13px; }
     root.traverse(function (o) {
       if (/^CALQUE/.test(o.name)) calques[nomCalque(o.name)] = o;
       var m = /^Mur_([A-Z])$/.exec(o.name);
-      if (m && o.isMesh) murs.push({ lettre: m[1], obj: o });
+      if (m) murs.push({ lettre: m[1], obj: o });
       if (o.isMesh && o.material) {
         o.material.side = THREE.DoubleSide;
       }
