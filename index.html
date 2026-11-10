@@ -71,6 +71,8 @@ footer { color: var(--muted); font-size: 13px; }
 .tuile[aria-pressed="true"] { border-color: var(--fg); outline: 2px solid var(--fg); outline-offset: -1px; }
 .tuile:focus-visible { outline: 2px solid var(--fg); }
 .zones { display: flex; flex-wrap: wrap; gap: 8px; }
+.liste-pm { margin: 0; padding-left: 18px; max-width: 65ch; font-size: 14px; }
+.liste-pm li { margin: 2px 0; }
 .zones .chip { flex-direction: column; align-items: flex-start; gap: 2px; padding: 8px 12px; }
 .zones .chip small { font: 12px var(--f-mono); opacity: .8; }
 .zones .chip[aria-pressed="true"] { background: var(--fg); color: var(--bg); }
@@ -100,7 +102,6 @@ tr.somme td { font-weight: 600; }
     </div>
     <div class="tools">
       <div class="group" role="group" aria-label="Plans">
-        <label class="chip" id="chip-Meubles"><input type="checkbox" id="calque-meubles" data-calque="Meubles" checked> Meubles <span class="vide" hidden>vide pour l'instant</span></label>
         <label class="chip" id="chip-Eau"><input type="checkbox" id="calque-eau" data-calque="Eau"> Eau <span class="vide" hidden>vide pour l'instant</span></label>
         <label class="chip" id="chip-Électricité"><input type="checkbox" id="calque-elec" data-calque="Électricité"> Électricité <span class="vide" hidden>vide pour l'instant</span></label>
       </div>
@@ -110,6 +111,24 @@ tr.somme td { font-weight: 600; }
         <button class="chip" id="vue-dessus" type="button">Vue de dessus</button>
         <button class="chip" id="vue-entree" type="button">Depuis l'entrée</button>
         <label class="chip"><input type="checkbox" id="plafond"> Plafond</label>
+      </div>
+    </div>
+    <div class="panneaux" aria-label="Aménagement">
+      <h2>Aménagement</h2>
+      <p style="color:var(--muted);font-size:13px">3 propositions pour placer frigo, plaque à induction, four, micro-ondes, évier (là où arrive l'eau) et plan de travail. Le détail de chaque meuble est plus bas.</p>
+      <div class="zones" id="amenagements" role="group" aria-label="Choisir une proposition"></div>
+      <div class="group">
+        <label class="chip on"><input type="checkbox" id="opt-hauts" checked> Meubles hauts</label>
+        <label class="chip on"><input type="checkbox" id="opt-credence" checked> Crédence</label>
+      </div>
+    </div>
+    <div class="panneaux" aria-label="Lumière">
+      <h2>Lumière</h2>
+      <div class="zones" id="ambiances" role="group" aria-label="Choisir une ambiance"></div>
+      <div class="group">
+        <label class="chip on"><input type="checkbox" id="led-haut" checked> LED sous meubles hauts</label>
+        <label class="chip"><input type="checkbox" id="led-plinthe"> LED dans les plinthes</label>
+        <label class="chip"><input type="checkbox" id="led-plafond"> LED en contour du plafond</label>
       </div>
     </div>
     <div class="panneaux" aria-label="Panneaux muraux">
@@ -131,6 +150,11 @@ tr.somme td { font-weight: 600; }
       <p style="color:var(--muted);font-size:13px">Panneaux PVC 260 × 122 cm collés bout à bout ; profilés aluminium argent seulement sur les bords visibles (autour de la fenêtre, contre la porte terrasse), largeur visible supposée 1 cm.</p>
     </div>
     <p style="color:var(--muted);font-size:14px">Les murs côté caméra s'effacent pour voir l'intérieur. Avec Eau ou Électricité, les murs deviennent transparents pour montrer ce qui passe dedans.</p>
+  </section>
+
+  <section aria-label="Meubles">
+    <h2 id="meubles-titre">Meubles et électroménager</h2>
+    <div id="meubles-info" style="display:grid;gap:12px"></div>
   </section>
 
   <section aria-label="Plan de pose">
@@ -214,7 +238,8 @@ tr.somme td { font-weight: 600; }
   }
   new MutationObserver(fond).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
 
-  scene.add(new THREE.HemisphereLight(0xffffff, 0x8a847c, 0.95));
+  var hemi = new THREE.HemisphereLight(0xffffff, 0x8a847c, 0.95);
+  scene.add(hemi);
   var sun = new THREE.DirectionalLight(0xffffff, 0.75);
   sun.position.set(-3, 8, 4);
   scene.add(sun);
@@ -226,7 +251,7 @@ tr.somme td { font-weight: 600; }
   controls.minDistance = 0.8;
   controls.maxDistance = 25;
 
-  var VERSION = '11';
+  var VERSION = '12';
   var calques = {};
   var profils = [], profilsOn = true, modeleCharge = false;
   var liste = null, cacheTex = {}, pieces = [], calep = null;
@@ -285,6 +310,8 @@ tr.somme td { font-weight: 600; }
     var parRef = function (r) { r = (r || '').toUpperCase(); if (r === 'AUCUN') return -1; var i = liste.findIndex(function (p) { return p.ref === r; }); return i >= 0 ? i : 0; };
     if (h.indexOf('=') > 0) {
       var m = {}; h.split('&').forEach(function (kv) { var a = kv.split('='); m[a[0]] = a[1]; });
+      if (m.am !== undefined) amenActive = m.am === '0' ? 'aucun' : 'Cuisine ' + m.am;
+      if (m.lum && ['jour', 'chaude', 'blanche', 'nuit'].indexOf(m.lum) >= 0) ambiance = m.lum;
       zones().forEach(function (z) { choix[z.id] = m[z.id] !== undefined ? parRef(m[z.id]) : 0; });
     } else {
       var i0 = h ? parRef(h) : 0;
@@ -293,6 +320,8 @@ tr.somme td { font-weight: 600; }
     construireZones();
     zones().forEach(function (z) { appliquerZone(z.id); });
     majInfo(); majPlan();
+    if (amen) { construireAmen(); majMeubles(); }
+    appliquerAmen();
   }
 
   function poser(i) {
@@ -300,7 +329,7 @@ tr.somme td { font-weight: 600; }
     var cibles = zoneActive === 'tous' ? zones().map(function (z) { return z.id; }) : [zoneActive];
     cibles.forEach(function (zid) { choix[zid] = i; appliquerZone(zid); });
     construireZones(); majInfo(); majPlan();
-    history.replaceState(null, '', '#' + zones().map(function (z) { return z.id + '=' + refDe(choix[z.id]); }).join('&'));
+    majHash();
   }
 
   function choixActif() {
@@ -437,6 +466,167 @@ tr.somme td { font-weight: 600; }
     e.target.closest('.chip').classList.toggle('on', profilsOn);
     if (calep && liste) majPlan();
   });
+  // ---------- aménagement, étiquettes, lumière
+  var amen = null, amenActive = 'Cuisine 1', ambiance = 'jour';
+  var etiquettes = [], ledObjs = [], ledLights = [], plafonniers = [];
+  var AMB = [
+    { id: 'jour', nom: 'Jour', sm: 'lumière du jour' },
+    { id: 'chaude', nom: 'Lumière chaude', sm: 'jaune, 2700 K' },
+    { id: 'blanche', nom: 'Lumière blanche', sm: 'blanc neutre, 4000 K' },
+    { id: 'nuit', nom: 'Nuit', sm: 'LED seules' }
+  ];
+  fetch('amenagements.json?v=' + VERSION).then(function (r) { return r.json(); }).then(function (d) { amen = d; construireAmen(); majMeubles(); });
+
+  function construireAmen() {
+    var box = document.getElementById('amenagements'); box.innerHTML = '';
+    [{ id: 'aucun', titre: 'Sans meubles' }].concat(amen || []).forEach(function (a) {
+      var b = document.createElement('button'); b.type = 'button'; b.className = 'chip';
+      b.setAttribute('aria-pressed', a.id === amenActive ? 'true' : 'false');
+      var parts = a.titre.split(' · ');
+      var t = document.createElement('span'); t.textContent = parts[0];
+      b.appendChild(t);
+      if (parts[1]) { var sm = document.createElement('small'); sm.textContent = parts[1]; b.appendChild(sm); }
+      b.addEventListener('click', function () { amenActive = a.id; construireAmen(); appliquerAmen(); majMeubles(); majHash(); });
+      box.appendChild(b);
+    });
+    var bx = document.getElementById('ambiances'); bx.innerHTML = '';
+    AMB.forEach(function (a) {
+      var b = document.createElement('button'); b.type = 'button'; b.className = 'chip';
+      b.setAttribute('aria-pressed', a.id === ambiance ? 'true' : 'false');
+      var t = document.createElement('span'); t.textContent = a.nom; var sm = document.createElement('small'); sm.textContent = a.sm;
+      b.appendChild(t); b.appendChild(sm);
+      b.addEventListener('click', function () {
+        ambiance = a.id;
+        if (a.id === 'nuit' && !['led-haut', 'led-plinthe', 'led-plafond'].some(function (k) { return document.getElementById(k).checked; })) {
+          document.getElementById('led-haut').checked = true; majChips();
+        }
+        construireAmen(); appliquerAmen(); majHash();
+      });
+      bx.appendChild(b);
+    });
+  }
+
+  function majMeubles() {
+    var box = document.getElementById('meubles-info'); box.innerHTML = '';
+    var a = (amen || []).filter(function (x) { return x.id === amenActive; })[0];
+    document.getElementById('meubles-titre').textContent = a ? 'Meubles et électroménager · ' + a.titre : 'Meubles et électroménager';
+    if (!a) { var p0 = document.createElement('p'); p0.textContent = 'Aucun meuble affiché. Choisis une proposition dans « Aménagement ».'; box.appendChild(p0); return; }
+    var p = document.createElement('p'); p.textContent = a.resume; box.appendChild(p);
+    [['Avantages', a.plus], ['Inconvénients', a.moins]].forEach(function (g) {
+      var h = document.createElement('h3'); h.textContent = g[0]; h.style.margin = '0'; h.style.fontSize = '15px';
+      var ul = document.createElement('ul'); ul.className = 'liste-pm';
+      g[1].forEach(function (x) { var li = document.createElement('li'); li.textContent = x; ul.appendChild(li); });
+      box.appendChild(h); box.appendChild(ul);
+    });
+    var w = document.createElement('div'); w.className = 'table-wrap';
+    var t = document.createElement('table'); t.style.minWidth = '640px';
+    var th = document.createElement('thead'); th.innerHTML = '<tr><th>Meuble</th><th>Forme</th><th>À quoi il sert</th><th>Taille (L × P × H)</th><th>Où</th></tr>';
+    var tb = document.createElement('tbody');
+    a.rows.forEach(function (r) {
+      var tr = document.createElement('tr');
+      [r.nom, r.forme, r.utilite, r.taille, r.ou].forEach(function (v, k) { var td = document.createElement('td'); td.textContent = v; if (k === 3) td.className = 'cote'; tr.appendChild(td); });
+      tb.appendChild(tr);
+    });
+    t.appendChild(th); t.appendChild(tb); w.appendChild(t); box.appendChild(w);
+    var n = document.createElement('p'); n.style.color = 'var(--muted)'; n.style.fontSize = '13px';
+    n.textContent = 'Tailles standard du commerce (60 cm de large pour l\'électroménager). Plan de travail à 90,8 cm du sol, meubles hauts de 145 à 215 cm, crédence entre les deux. Le lave-vaisselle est une option : sans lui, un meuble bas de 60 cm prend sa place.';
+    box.appendChild(n);
+  }
+
+  function visibleVraiment(o) { for (var x = o; x; x = x.parent) if (!x.visible) return false; return true; }
+
+  function etiquette(texte) {
+    var cv = document.createElement('canvas'), cx = cv.getContext('2d'), f = 40;
+    cx.font = '600 ' + f + 'px Inter, Arial, sans-serif';
+    var w = Math.ceil(cx.measureText(texte).width) + 36; cv.width = w; cv.height = f + 28;
+    cx.font = '600 ' + f + 'px Inter, Arial, sans-serif';
+    cx.fillStyle = 'rgba(0,0,0,0.78)'; cx.fillRect(0, 0, cv.width, cv.height);
+    cx.fillStyle = '#ffffff'; cx.textBaseline = 'middle'; cx.fillText(texte, 18, cv.height / 2 + 2);
+    var tx = new THREE.CanvasTexture(cv); tx.encoding = THREE.sRGBEncoding;
+    var sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tx, depthTest: false, transparent: true }));
+    sp.renderOrder = 10; var h = 0.13; sp.scale.set(h * cv.width / cv.height, h, 1);
+    return sp;
+  }
+
+  function preparerAmen(root) {
+    root.traverse(function (o) {
+      if (o.userData && o.userData.etiquette) {
+        var b = new THREE.Box3().setFromObject(o), c = b.getCenter(new THREE.Vector3());
+        var sp = etiquette(o.userData.etiquette); sp.position.set(c.x, b.max.y + 0.12, c.z);
+        scene.add(sp); etiquettes.push({ sp: sp, obj: o });
+      }
+      if (/^LED_/.test(o.name)) {
+        var b2 = new THREE.Box3().setFromObject(o), c2 = b2.getCenter(new THREE.Vector3()), sz = b2.getSize(new THREE.Vector3());
+        var L = Math.max(sz.x, sz.z);
+        var n = Math.max(1, Math.round(L / 1.2));
+        var dir = sz.x > sz.z ? new THREE.Vector3(1, 0, 0) : new THREE.Vector3(0, 0, 1);
+        var vers = new THREE.Vector3(centre.x - c2.x, 0, centre.z - c2.z).normalize();
+        for (var k = 0; k < n; k++) {
+          var li = new THREE.PointLight(0xffd29a, 0, /plafond/.test(o.name) ? 3.2 : 1.6, 2);
+          li.position.copy(c2).addScaledVector(dir, (k + 0.5 - n / 2) * L / n).addScaledVector(vers, 0.12);
+          if (/plafond/.test(o.name)) li.position.y -= 0.15;
+          scene.add(li); ledLights.push({ li: li, obj: o });
+        }
+        o.traverse(function (x) { if (x.isMesh) ledObjs.push(x); });
+      }
+    });
+    [-0.25, 0.25].forEach(function (f) {
+      var p = new THREE.PointLight(0xffffff, 0, 7, 1.5);
+      p.position.set(centre.x, hauteur - 0.15, centre.z + f * taille.z);
+      scene.add(p); plafonniers.push(p);
+    });
+  }
+
+  function appliquerAmen() {
+    ['Cuisine 1', 'Cuisine 2', 'Cuisine 3'].forEach(function (n) { if (calques[n]) calques[n].visible = n === amenActive; });
+    var hauts = document.getElementById('opt-hauts').checked, cred = document.getElementById('opt-credence').checked;
+    var lh = document.getElementById('led-haut').checked, lp = document.getElementById('led-plinthe').checked, lc = document.getElementById('led-plafond').checked;
+    ['Cuisine 1', 'Cuisine 2', 'Cuisine 3', 'Éclairage'].forEach(function (n) {
+      var c = calques[n]; if (!c) return;
+      c.traverse(function (o) {
+        if (o === c || !o.name) return;
+        if (/^Haut_/.test(o.name)) o.visible = hauts;
+        else if (/^Crédence_/.test(o.name)) o.visible = cred;
+        else if (/^LED_haut/.test(o.name)) o.visible = hauts && lh;
+        else if (/LED_plinthe/.test(o.name)) o.visible = lp;
+        else if (/^LED_plafond/.test(o.name)) o.visible = lc;
+      });
+    });
+    etiquettes.forEach(function (e) { e.sp.visible = visibleVraiment(e.obj); });
+    var chaud = new THREE.Color(0xffc98a), blanc = new THREE.Color(0xf3f6ff);
+    var ledCol = ambiance === 'blanche' ? blanc : chaud;
+    var R = {
+      jour:    { hc: 0xffffff, hi: 0.95, si: 0.75, pi: 0, pc: 0xffffff, li: 0.35, bg: null },
+      chaude:  { hc: 0xffd8a8, hi: 0.32, si: 0, pi: 1.25, pc: 0xffc27e, li: 0.9, bg: 0x1a1612 },
+      blanche: { hc: 0xe8efff, hi: 0.38, si: 0, pi: 1.35, pc: 0xf4f7ff, li: 0.9, bg: 0x14161a },
+      nuit:    { hc: 0x2a3150, hi: 0.06, si: 0, pi: 0, pc: 0xffffff, li: 1.5, bg: 0x07080b }
+    }[ambiance];
+    hemi.color.setHex(R.hc); hemi.intensity = R.hi;
+    sun.intensity = R.si;
+    plafonniers.forEach(function (p) { p.intensity = R.pi; p.color.setHex(R.pc); });
+    ledLights.forEach(function (l) { l.li.color.copy(ledCol); l.li.intensity = visibleVraiment(l.obj) ? R.li : 0; });
+    ledObjs.forEach(function (m) {
+      m.material.emissive = ledCol.clone(); m.material.emissiveIntensity = ambiance === 'jour' ? 0.8 : 2.2; m.material.color = ledCol.clone();
+    });
+    if (R.bg === null) fond(); else scene.background = new THREE.Color(R.bg);
+  }
+
+  function majChips() {
+    ['opt-hauts', 'opt-credence', 'led-haut', 'led-plinthe', 'led-plafond'].forEach(function (k) {
+      var e = document.getElementById(k); e.closest('.chip').classList.toggle('on', e.checked);
+    });
+  }
+  ['opt-hauts', 'opt-credence', 'led-haut', 'led-plinthe', 'led-plafond'].forEach(function (k) {
+    document.getElementById(k).addEventListener('change', function () { majChips(); appliquerAmen(); });
+  });
+
+  function majHash() {
+    var parts = zones().map(function (z) { return z.id + '=' + refDe(choix[z.id]); });
+    parts.push('am=' + (amenActive === 'aucun' ? '0' : amenActive.slice(-1)));
+    parts.push('lum=' + ambiance);
+    history.replaceState(null, '', '#' + parts.join('&'));
+  }
+
   function zoneVisible(o) {
     var z = o.userData.zone;
     if (!z) return true;
@@ -468,9 +658,7 @@ tr.somme td { font-weight: 600; }
       var v = /(?:^Vitre_mur_|^Panneaux_mur_|^Profil\S*_mur_)([A-Z])(?:_|$)/.exec(o.name);
       if (v) murs.forEach(function (w) { if (w.lettre === v[1]) w.autres.push(o); });
     });
-    modeleCharge = true;
     window.cuisine3d = { calques: calques, pieces: pieces, profils: profils, choix: choix };
-    demarrer();
     var st = calques['Structure'];
     if (st) st.traverse(function (o) {
       if (o.isMesh && !/^Vitre/.test(o.name)) {
@@ -491,6 +679,7 @@ tr.somme td { font-weight: 600; }
       w.out = new THREE.Vector3(w.c.x - centre.x, 0, w.c.z - centre.z).normalize();
     });
 
+    preparerAmen(root);
     document.querySelectorAll('[data-calque]').forEach(function (cb) {
       var obj = calques[cb.dataset.calque];
       var vide = !obj || !obj.children.some(function (c) { var n = 0; c.traverse(function (x) { if (x.isMesh) n++; }); return n > 0; });
@@ -501,6 +690,8 @@ tr.somme td { font-weight: 600; }
     appliquer();
     vue('3d');
     statusEl.hidden = true;
+    modeleCharge = true;
+    demarrer();
   }, undefined, function () {
     statusEl.textContent = "La maquette n'a pas pu se charger. Recharge la page.";
   });
