@@ -5,49 +5,12 @@
    2600
   ],
   "hauteur_posee_mm": 2500,
-  "murs": [
+  "zones": [
    {
-    "mur": "A",
-    "nom": "bas · entrée",
-    "longueur_mm": 2476,
-    "largeurs_mm": [
-     1220,
-     628,
-     628
-    ],
-    "ouvertures": [
-     "Porte d'entrée"
-    ]
-   },
-   {
-    "mur": "B",
-    "nom": "évier · terrasse",
-    "longueur_mm": 4830,
-    "largeurs_mm": [
-     1220,
-     1220,
-     1220,
-     1170
-    ],
-    "ouvertures": [
-     "Porte terrasse"
-    ]
-   },
-   {
-    "mur": "C",
-    "nom": "fenêtre",
-    "longueur_mm": 2360,
-    "largeurs_mm": [
-     1220,
-     1140
-    ],
-    "ouvertures": [
-     "Fenêtre"
-    ]
-   },
-   {
+    "id": "D",
+    "nom": "Grand mur (à gauche de l'entrée)",
     "mur": "D",
-    "nom": "grand mur",
+    "x0_mm": 0,
     "longueur_mm": 4080,
     "largeurs_mm": [
      1220,
@@ -55,23 +18,59 @@
      1220,
      420
     ],
-    "ouvertures": []
+    "ouvertures": [],
+    "profils_mm": []
+   },
+   {
+    "id": "C",
+    "nom": "Mur de la fenêtre",
+    "mur": "C",
+    "x0_mm": 0,
+    "longueur_mm": 2360,
+    "largeurs_mm": [
+     1220,
+     1140
+    ],
+    "ouvertures": [
+     "Fenêtre"
+    ],
+    "profils_mm": [
+     1160,
+     1160,
+     1020,
+     1020
+    ]
+   },
+   {
+    "id": "B1",
+    "nom": "Mur après le pilier (côté fenêtre)",
+    "mur": "B",
+    "x0_mm": 0,
+    "longueur_mm": 1670,
+    "largeurs_mm": [
+     1220,
+     450
+    ],
+    "ouvertures": [],
+    "profils_mm": []
+   },
+   {
+    "id": "B2",
+    "nom": "Mur de l'évier",
+    "mur": "B",
+    "x0_mm": 1970,
+    "longueur_mm": 1660,
+    "largeurs_mm": [
+     1220,
+     440
+    ],
+    "ouvertures": [
+     "Porte terrasse"
+    ],
+    "profils_mm": [
+     2160
+    ]
    }
-  ],
-  "profils_mm": [
-   2050,
-   2050,
-   850,
-   2160,
-   2160,
-   1170,
-   1160,
-   1160,
-   1020,
-   1020
-  ],
-  "plaques_sans_chutes": 13,
-  "plaques_avec_chutes": 12,
-  "barres_profil": 7
+  ]
  }
 }

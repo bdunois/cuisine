@@ -70,6 +70,10 @@ footer { color: var(--muted); font-size: 13px; }
 .tuile .aucun { width: 56px; height: 120px; border: 1px dashed var(--line); display: grid; place-items: center; font-size: 11px; }
 .tuile[aria-pressed="true"] { border-color: var(--fg); outline: 2px solid var(--fg); outline-offset: -1px; }
 .tuile:focus-visible { outline: 2px solid var(--fg); }
+.zones { display: flex; flex-wrap: wrap; gap: 8px; }
+.zones .chip { flex-direction: column; align-items: flex-start; gap: 2px; padding: 8px 12px; }
+.zones .chip small { font: 12px var(--f-mono); opacity: .8; }
+.zones .chip[aria-pressed="true"] { background: var(--fg); color: var(--bg); }
 .pose { display: grid; gap: 18px; }
 .mur-pose { display: grid; gap: 8px; }
 .mur-pose h3 { margin: 0; font-size: 16px; font-weight: 600; }
@@ -111,23 +115,27 @@ tr.somme td { font-weight: 600; }
     <div class="panneaux" aria-label="Panneaux muraux">
       <div class="tete">
         <h2>Panneaux muraux</h2>
+        <label class="chip on" id="chip-profils"><input type="checkbox" id="profils" checked> Profilés alu</label>
+      </div>
+      <p style="color:var(--muted);font-size:13px">1. Choisis le mur. 2. Touche un panneau : il se pose sur ce mur. Chaque mur peut avoir un panneau différent, ou aucun. HDM + numéro = la référence du panneau sur le site Home Design 59 (homedesign59.fr).</p>
+      <div class="zones" id="zones" role="group" aria-label="Choisir le mur"></div>
+      <div class="actuel" id="actuel">Chargement des panneaux…</div>
+      <div class="tete">
+        <span></span>
         <div class="group">
           <button class="chip" id="prec" type="button" aria-label="Panneau précédent">←</button>
           <button class="chip" id="suiv" type="button" aria-label="Panneau suivant">→</button>
-          <label class="chip on" id="chip-profils"><input type="checkbox" id="profils" checked> Profilés alu</label>
         </div>
       </div>
-      <p style="color:var(--muted);font-size:13px">HDM + numéro = la référence du panneau sur le site Home Design 59 (homedesign59.fr). Touche un panneau pour le voir sur les murs.</p>
-      <div class="actuel" id="actuel">Chargement des panneaux…</div>
       <div class="bande" id="bande" role="group" aria-label="Choisir un panneau"></div>
-      <p style="color:var(--muted);font-size:13px">Panneaux PVC 260 × 122 cm et profilés aluminium argent de Home Design 59, posés sur les 4 murs. Les profilés sont dessinés entre chaque panneau (largeur supposée 2 cm).</p>
+      <p style="color:var(--muted);font-size:13px">Panneaux PVC 260 × 122 cm collés bout à bout ; profilés aluminium argent seulement sur les bords visibles (autour de la fenêtre, contre la porte terrasse), largeur visible supposée 1 cm.</p>
     </div>
     <p style="color:var(--muted);font-size:14px">Les murs côté caméra s'effacent pour voir l'intérieur. Avec Eau ou Électricité, les murs deviennent transparents pour montrer ce qui passe dedans.</p>
   </section>
 
   <section aria-label="Plan de pose">
-    <h2>Plan de pose du panneau choisi</h2>
-    <p style="color:var(--muted);font-size:14px">Calculé pour que les motifs se suivent d'une plaque à l'autre : pour chaque plaque, on a essayé les 2 sens de pose, le côté gardé quand elle est recoupée et la hauteur de coupe (par pas de 2 cm). Quand ça raccorde mieux, une plaque peut être descendue : ce qui dépasse en bas est coupé et reposé au-dessus (même plaque, une coupe horizontale en plus). On garde la pose où les jonctions se voient le moins. Avec des plaques identiques, une veine très marquée ne peut pas se prolonger parfaitement : les étoiles ★ indiquent si le panneau se raccorde bien. Les plaques se collent bout à bout ; les profilés alu ne vont qu'autour des portes et de la fenêtre. Un panneau imprimé ne peut pas être retourné en miroir : seule la rotation de 180° est possible. Cotes provisoires.</p>
+    <h2>Plan de pose, mur par mur</h2>
+    <p style="color:var(--muted);font-size:14px">Pour chaque plaque, la pose (sens, côté gardé quand elle est recoupée, coupe en hauteur) est choisie pour que les motifs se suivent le mieux d'une plaque à l'autre. Avec des plaques identiques, une veine très marquée ne peut pas se prolonger parfaitement : les étoiles ★ indiquent si le panneau se raccorde bien. Un panneau imprimé ne peut pas être retourné en miroir : seule la rotation de 180° est possible. Cotes provisoires.</p>
     <div class="pose" id="pose"></div>
     <h2>Prix</h2>
     <div class="table-wrap"><table><thead><tr><th>Article</th><th>Quantité</th><th>Total</th></tr></thead><tbody id="total"></tbody></table></div>
@@ -218,20 +226,29 @@ tr.somme td { font-weight: 600; }
   controls.minDistance = 0.8;
   controls.maxDistance = 25;
 
-  var VERSION = '10';
+  var VERSION = '11';
   var calques = {};
-  var panneauxObjs = [], panneauMats = [], profils = [], profilsOn = true, modeleCharge = false;
-  var liste = null, actuel = -1, cacheTex = {};
+  var profils = [], profilsOn = true, modeleCharge = false;
+  var liste = null, cacheTex = {}, pieces = [], calep = null;
+  var choix = {}, zoneActive = 'tous';
+  var COURT = { D: 'Grand mur', C: 'Mur de la fenêtre', B1: 'Après le pilier', B2: "Mur de l'évier" };
   var texLoader = new THREE.TextureLoader();
-  fetch('panneaux/panneaux.json?v=' + VERSION).then(function (r) { return r.json(); }).then(function (l) { liste = l; construireBande(); demarrerPanneaux(); })
+  fetch('panneaux/panneaux.json?v=' + VERSION).then(function (r) { return r.json(); }).then(function (l) { liste = l; construireBande(); demarrer(); })
     .catch(function () { document.getElementById('actuel').textContent = "La liste des panneaux n'a pas pu se charger."; });
+  fetch('calepinage.json?v=' + VERSION).then(function (r) { return r.json(); }).then(function (d) { calep = d['Panneaux PVC']; demarrer(); });
+
+  function zones() { return calep ? calep.zones : []; }
+  function court(z) { return COURT[z.id] || z.nom; }
+  function refDe(i) { return i < 0 ? 'aucun' : liste[i].ref; }
+  function cm(mm) { return (Math.round(mm / 10 * 10) / 10).toString().replace('.', ','); }
+  function euros(v) { return v.toFixed(2).replace('.', ',') + ' €'; }
 
   function construireBande() {
     var bande = document.getElementById('bande');
     var b0 = document.createElement('button');
     b0.type = 'button'; b0.className = 'tuile'; b0.id = 'tuile-aucun'; b0.setAttribute('aria-pressed', 'false');
     b0.innerHTML = '<span class="aucun">aucun</span><span>sans</span>';
-    b0.addEventListener('click', function () { choisir(-1); });
+    b0.addEventListener('click', function () { poser(-1); });
     bande.appendChild(b0);
     liste.forEach(function (p, i) {
       var b = document.createElement('button');
@@ -241,123 +258,137 @@ tr.somme td { font-weight: 600; }
       var t = document.createElement('span'); t.textContent = p.ref + ' · ' + (p.prix || '').replace('.00', '').replace(' ', '');
       var st = document.createElement('span'); st.textContent = '★★★'.slice(0, p.raccord || 2) + '☆☆☆'.slice(0, 3 - (p.raccord || 2)); st.title = 'Raccord des motifs';
       b.appendChild(im); b.appendChild(t); b.appendChild(st);
-      b.addEventListener('click', function () { choisir(i); });
+      b.addEventListener('click', function () { poser(i); });
       bande.appendChild(b);
     });
   }
 
-  function demarrerPanneaux() {
+  function construireZones() {
+    var box = document.getElementById('zones'); box.innerHTML = '';
+    [{ id: 'tous', nom: 'Tous les murs' }].concat(zones()).forEach(function (z) {
+      var b = document.createElement('button');
+      b.type = 'button'; b.className = 'chip'; b.id = 'zone-' + z.id;
+      b.setAttribute('aria-pressed', z.id === zoneActive ? 'true' : 'false');
+      var t = document.createElement('span'); t.textContent = z.id === 'tous' ? z.nom : court(z);
+      var sm = document.createElement('small');
+      if (z.id === 'tous') sm.textContent = 'même panneau partout';
+      else sm.textContent = z.largeurs_mm.length + ' plaque' + (z.largeurs_mm.length > 1 ? 's' : '') + ' · ' + (choix[z.id] < 0 ? 'aucun' : refDe(choix[z.id]));
+      b.appendChild(t); b.appendChild(sm);
+      b.addEventListener('click', function () { zoneActive = z.id; construireZones(); majInfo(); });
+      box.appendChild(b);
+    });
+  }
+
+  function demarrer() {
     if (!liste || !modeleCharge || !calep) return;
-    var h = decodeURIComponent((location.hash || '').slice(1)).toUpperCase();
-    var i = liste.findIndex(function (p) { return p.ref === h; });
-    choisir(h === 'AUCUN' ? -1 : (i >= 0 ? i : 0), true);
-  }
-
-  var pieces = [], calep = null, ORDRE = ['C', 'B', 'A', 'D'];
-  fetch('calepinage.json?v=' + VERSION).then(function (r) { return r.json(); }).then(function (d) { calep = d['Panneaux PVC']; demarrerPanneaux(); });
-
-  function diff(a, b) { var s = 0; for (var i = 0; i < a.length; i++) s += Math.abs(a[i] - b[i]); return s / a.length; }
-
-  function calculerPose(img) {
-    var cv = document.createElement('canvas'); cv.width = img.width; cv.height = img.height;
-    var cx = cv.getContext('2d'); cx.drawImage(img, 0, 0);
-    var px = cx.getImageData(0, 0, cv.width, cv.height).data;
-    var PW = calep.plaque_mm[0], PH = calep.plaque_mm[1], HP = calep.hauteur_posee_mm, marge = PH - HP;
-    function bord(rot, ox, oz, u) {
-      var out = [];
-      for (var k = 0; k < 48; k++) {
-        var z = (k + 0.5) / 48 * HP, s, t;
-        if (!rot) { s = (u + ox) / PW; t = (PH - z - oz) / PH; } else { s = 1 - (u + ox) / PW; t = (z + oz) / PH; }
-        s = Math.min(0.985, Math.max(0.015, s)); t = Math.min(1, Math.max(0, t));
-        var i = (Math.round(t * (cv.height - 1)) * cv.width + Math.round(s * (cv.width - 1))) * 4;
-        out.push(px[i], px[i + 1], px[i + 2]);
-      }
-      return out;
+    var h = decodeURIComponent((location.hash || '').slice(1));
+    var parRef = function (r) { r = (r || '').toUpperCase(); if (r === 'AUCUN') return -1; var i = liste.findIndex(function (p) { return p.ref === r; }); return i >= 0 ? i : 0; };
+    if (h.indexOf('=') > 0) {
+      var m = {}; h.split('&').forEach(function (kv) { var a = kv.split('='); m[a[0]] = a[1]; });
+      zones().forEach(function (z) { choix[z.id] = m[z.id] !== undefined ? parRef(m[z.id]) : 0; });
+    } else {
+      var i0 = h ? parRef(h) : 0;
+      zones().forEach(function (z) { choix[z.id] = i0; });
     }
-    var seq = [];
-    ORDRE.forEach(function (L) {
-      var mw = calep.murs.filter(function (m) { return m.mur === L; })[0];
-      if (!mw) return;
-      mw.largeurs_mm.forEach(function (w, j) { seq.push({ L: L, nomMur: mw.nom, j: j + 1, w: w, debutMur: j === 0 }); });
-    });
-    seq.forEach(function (p) {
-      p.etats = [];
-      var oxs = p.w >= PW - 1 ? [0] : [0, PW - p.w];
-      [0, 1].forEach(function (rot) { oxs.forEach(function (ox) { [0, marge / 2, marge].forEach(function (oz) {
-        p.etats.push({ rot: rot, ox: ox, oz: oz, pen: rot * 0.5 + (oz ? 0.2 : 0), G: bord(rot, ox, oz, 0), D: bord(rot, ox, oz, p.w) });
-      }); }); });
-    });
-    var cout = seq[0].etats.map(function (e) { return e.pen; }), retour = [];
-    for (var i = 1; i < seq.length; i++) {
-      var poids = seq[i].debutMur ? 0.3 : 1, nc = [], nb = [];
-      seq[i].etats.forEach(function (e) {
-        var best = 1e18, bi = 0;
-        seq[i - 1].etats.forEach(function (f, k) { var c = cout[k] + poids * diff(f.D, e.G); if (c < best) { best = c; bi = k; } });
-        nc.push(best + e.pen); nb.push(bi);
-      });
-      cout = nc; retour.push(nb);
-    }
-    var k = cout.indexOf(Math.min.apply(null, cout));
-    for (var i2 = seq.length - 1; i2 >= 0; i2--) { seq[i2].choix = seq[i2].etats[k]; if (i2 > 0) k = retour[i2 - 1][k]; }
-    return seq;
+    construireZones();
+    zones().forEach(function (z) { appliquerZone(z.id); });
+    majInfo(); majPlan();
   }
 
-  function appliquerTexture(t, p) {
-    if (!calep || !pieces.length) return;
-    var seq = p.pose ? p.pose.map(function (q) {
-      var mw = calep.murs.filter(function (m) { return m.mur === q.mur; })[0];
-      return { L: q.mur, j: q.plaque, w: q.largeur, nomMur: mw ? mw.nom : '', choix: { rot: q.rot, ox: q.ox, oz: q.oz } };
-    }) : calculerPose(t.image);
-    var PW = calep.plaque_mm[0] / 1000, PH = calep.plaque_mm[1] / 1000;
-    seq.forEach(function (q) {
-      var c = q.choix;
-      pieces.filter(function (x) { return x.L === q.L && x.j === q.j; }).forEach(function (x) {
-        var tx = t.clone();
-        tx.flipY = false; tx.encoding = THREE.sRGBEncoding; tx.wrapS = THREE.ClampToEdgeWrapping; tx.wrapT = THREE.RepeatWrapping;
-        tx.anisotropy = renderer.capabilities.getMaxAnisotropy();
-        tx.matrixAutoUpdate = false;
-        var a = 1 / PW, b = 1 / PH, ox = c.ox / 1000, oz = c.oz / 1000;
-        if (!c.rot) tx.matrix.set(a, 0, ox * a, 0, b, (PH - 1 - oz) * b, 0, 0, 1);
-        else tx.matrix.set(-a, 0, 1 - ox * a, 0, -b, (1 + oz) * b, 0, 0, 1);
-        tx.needsUpdate = true;
-        if (x.mesh.material.map && x.mesh.material.map !== t) x.mesh.material.map.dispose();
-        x.mesh.material.map = tx; x.mesh.material.needsUpdate = true;
-      });
-    });
-    afficherPose(seq, p);
+  function poser(i) {
+    if (!calep) return;
+    var cibles = zoneActive === 'tous' ? zones().map(function (z) { return z.id; }) : [zoneActive];
+    cibles.forEach(function (zid) { choix[zid] = i; appliquerZone(zid); });
+    construireZones(); majInfo(); majPlan();
+    history.replaceState(null, '', '#' + zones().map(function (z) { return z.id + '=' + refDe(choix[z.id]); }).join('&'));
   }
 
-  function cm(mm) { return (Math.round(mm / 10 * 10) / 10).toString().replace('.', ','); }
+  function choixActif() {
+    if (zoneActive !== 'tous') return choix[zoneActive];
+    var v = zones().map(function (z) { return choix[z.id]; });
+    return v.every(function (x) { return x === v[0]; }) ? v[0] : null;
+  }
 
-  function afficherPose(seq, p) {
-    var PW = calep.plaque_mm[0], PH = calep.plaque_mm[1], HP = calep.hauteur_posee_mm;
+  function majInfo() {
+    var i = choixActif();
+    document.querySelectorAll('.tuile').forEach(function (b) { b.setAttribute('aria-pressed', 'false'); });
+    var info = document.getElementById('actuel'); info.innerHTML = '';
+    var z = zones().filter(function (x) { return x.id === zoneActive; })[0];
+    var ou = document.createElement('strong'); ou.textContent = (z ? court(z) : 'Tous les murs') + ' :';
+    info.appendChild(ou);
+    if (i === null) { var sp = document.createElement('span'); sp.textContent = 'panneaux différents selon le mur'; info.appendChild(sp); return; }
+    var tb = document.getElementById('tuile-' + refDe(i)); if (tb) { tb.setAttribute('aria-pressed', 'true'); tb.scrollIntoView({ block: 'nearest', inline: 'center' }); }
+    if (i < 0) { var s0 = document.createElement('span'); s0.textContent = 'sans panneaux'; info.appendChild(s0); return; }
+    var p = liste[i];
+    var RAC = { 3: 'raccord des motifs ★★★ : jonctions presque invisibles', 2: 'raccord des motifs ★★☆ : jonctions discrètes', 1: 'raccord des motifs ★☆☆ : motif très marqué, les jonctions se voient' };
+    var s1 = document.createElement('span'); s1.textContent = p.ref + ' · ' + (p.prix || '').replace('.00', '') + ' la plaque · ' + RAC[p.raccord || 2] + (p.approx ? ' · texture approximative' : '');
+    var a = document.createElement('a'); a.href = p.url; a.target = '_blank'; a.rel = 'noopener'; a.textContent = 'Acheter ce panneau sur homedesign59.fr ↗';
+    info.appendChild(s1); info.appendChild(a);
+  }
+
+  function appliquerZone(zid) {
+    var i = choix[zid];
+    if (i === undefined || i < 0) return;
+    var p = liste[i];
+    var go = function (t) {
+      if (choix[zid] !== i) return;
+      var PW = calep.plaque_mm[0] / 1000, PH = calep.plaque_mm[1] / 1000;
+      (p.pose[zid] || []).forEach(function (q) {
+        pieces.filter(function (x) { return x.zone === zid && x.j === q.plaque; }).forEach(function (x) {
+          var tx = t.clone();
+          tx.flipY = false; tx.encoding = THREE.sRGBEncoding; tx.wrapS = tx.wrapT = THREE.ClampToEdgeWrapping;
+          tx.anisotropy = renderer.capabilities.getMaxAnisotropy();
+          tx.matrixAutoUpdate = false;
+          var a = 1 / PW, b = 1 / PH, ox = q.ox / 1000, oz = q.oz / 1000;
+          if (!q.rot) tx.matrix.set(a, 0, ox * a, 0, b, (PH - 1 - oz) * b, 0, 0, 1);
+          else tx.matrix.set(-a, 0, 1 - ox * a, 0, -b, (1 + oz) * b, 0, 0, 1);
+          tx.needsUpdate = true;
+          if (x.mesh.material.map) x.mesh.material.map.dispose();
+          x.mesh.material.map = tx; x.mesh.material.needsUpdate = true;
+        });
+      });
+    };
+    if (cacheTex[p.ref]) go(cacheTex[p.ref]);
+    else texLoader.load(p.texture, function (t) { cacheTex[p.ref] = t; go(t); });
+  }
+
+  function ffd(valeurs, capacite) {
+    var sacs = [];
+    valeurs.slice().sort(function (a, b) { return b - a; }).forEach(function (v) {
+      for (var k = 0; k < sacs.length; k++) if (sacs[k] + v <= capacite) { sacs[k] += v; return; }
+      sacs.push(v);
+    });
+    return sacs.length;
+  }
+
+  function majPlan() {
+    var PW = calep.plaque_mm[0], PH = calep.plaque_mm[1], HP = calep.hauteur_posee_mm, coupeH = PH - HP;
     var box = document.getElementById('pose'); box.innerHTML = '';
-    var lien = document.createElement('p'); lien.style.margin = '0';
-    var la = document.createElement('a'); la.href = p.url; la.target = '_blank'; la.rel = 'noopener'; la.style.color = 'inherit'; la.style.fontWeight = '600';
-    la.textContent = 'Panneau ' + p.ref + ' : acheter sur homedesign59.fr ↗'; lien.appendChild(la); box.appendChild(lien);
-    var parMur = {};
-    seq.forEach(function (q) { (parMur[q.L] = parMur[q.L] || []).push(q); });
-    ORDRE.forEach(function (L) {
-      var qs = parMur[L]; if (!qs) return;
+    var parRef = {}, profilsMm = [];
+    zones().forEach(function (z) {
+      var i = choix[z.id];
       var bloc = document.createElement('div'); bloc.className = 'mur-pose';
-      var h = document.createElement('h3'); h.textContent = 'Mur ' + L + (qs[0].nomMur ? ' · ' + qs[0].nomMur : '');
+      var h = document.createElement('h3'); h.textContent = z.nom + ' · ' + (i < 0 ? 'sans panneaux' : liste[i].ref);
       bloc.appendChild(h);
-      qs.forEach(function (q) {
-        var c = q.choix, coupeL = PW - q.w, coupeH = PH - HP;
-        var d = document.createElement('div'); d.className = 'fiche';
+      if (i < 0) { box.appendChild(bloc); return; }
+      var p = liste[i];
+      var la = document.createElement('a'); la.href = p.url; la.target = '_blank'; la.rel = 'noopener'; la.style.color = 'inherit';
+      la.textContent = 'Acheter le panneau ' + p.ref + ' sur homedesign59.fr ↗'; bloc.appendChild(la);
+      var g = parRef[p.ref] = parRef[p.ref] || { p: p, entieres: 0, coupes: [] };
+      (p.pose[z.id] || []).forEach(function (q) {
+        if (q.largeur >= PW - 1) g.entieres++; else g.coupes.push(q.largeur);
+        var coupeL = PW - q.largeur;
+        var parts = [];
+        if (coupeL > 1) parts.push('largeur : enlever ' + cm(coupeL) + ' cm côté ' + (q.ox > 0 ? 'gauche' : 'droit') + ' de la plaque');
+        if (coupeH > 1) parts.push('hauteur : enlever ' + (q.oz > 0 && q.oz < coupeH ? cm(q.oz) + ' cm en bas et ' + cm(coupeH - q.oz) + ' cm en haut' : cm(coupeH) + ' cm ' + (q.oz > 0 ? 'en bas' : 'en haut')));
         var lignes = [
-          ['Plaque', q.j + ' (en partant de la gauche, face au mur)'],
+          ['Plaque', q.plaque + ' (en partant de la gauche, face au mur)'],
           ['Taille du panneau', cm(PW) + ' × ' + cm(PH) + ' cm'],
-          ['À découper', (function () {
-            var parts = [];
-            if (coupeL > 1) parts.push('largeur : enlever ' + cm(coupeL) + ' cm côté ' + (c.ox > 0 ? 'gauche' : 'droit') + ' de la plaque');
-            if (c.oz > coupeH + 1) parts.push('hauteur : plaque descendue de ' + cm(c.oz) + ' cm pour raccorder le motif → coupez-la à ' + cm(c.oz) + ' cm de son bas ; le morceau du haut de la plaque (' + cm(PH - c.oz) + ' cm) se pose en bas du mur, le morceau du bas, recoupé à ' + cm(c.oz - coupeH) + ' cm, se pose au-dessus');
-            else if (coupeH > 1) parts.push('hauteur : enlever ' + (c.oz > 0 && c.oz < coupeH ? cm(c.oz) + ' cm en bas et ' + cm(coupeH - c.oz) + ' cm en haut' : cm(coupeH) + ' cm ' + (c.oz > 0 ? 'en bas' : 'en haut')));
-            return parts.length ? 'oui → ' + cm(q.w) + ' × ' + cm(HP) + ' cm (' + parts.join(' ; ') + ')' : 'non';
-          })()],
-          ['Rotation', c.rot ? 'oui : 180° (posée tête en bas)' : 'non (à l\'endroit)'],
+          ['À découper', parts.length ? 'oui → ' + cm(q.largeur) + ' × ' + cm(HP) + ' cm (' + parts.join(' ; ') + ')' : 'non'],
+          ['Rotation', q.rot ? 'oui : 180° (posée tête en bas)' : 'non (à l\'endroit)'],
           ['Prix', (parseFloat(p.prix) || 59).toLocaleString('fr-FR') + ' € la plaque']
         ];
+        var d = document.createElement('div'); d.className = 'fiche';
         lignes.forEach(function (l) {
           var r = document.createElement('div');
           var k = document.createElement('span'); k.className = 'k'; k.textContent = l[0] + ' :';
@@ -366,64 +397,51 @@ tr.somme td { font-weight: 600; }
         });
         bloc.appendChild(d);
       });
+      if (profilsOn) profilsMm = profilsMm.concat(z.profils_mm || []);
       box.appendChild(bloc);
     });
-    var prixP = parseFloat((p.prix || '59').replace(',', '.')) || 59;
-    var nP = calep.plaques_sans_chutes, nPc = calep.plaques_avec_chutes, nB = calep.barres_profil, nC = nP * 2;
     var tot = document.getElementById('total'); tot.innerHTML = '';
-    [['Panneau PVC ' + p.ref + ' (260 × 122 cm)', nP + ' × ' + prixP.toFixed(2).replace('.', ',') + ' €', nP * prixP, p.url],
-     ['Profilé de finition aluminium 260 cm (autour des portes et de la fenêtre)', nB + ' × 8,90 €', nB * 8.9, 'https://homedesign59.fr/produit/profile-de-finition-aluminium-pour-panneau-pvc/'],
-     ['Colle et joint polymère MS 300 ml (2 par plaque)', nC + ' × 6,90 €', nC * 6.9, 'https://homedesign59.fr/produit/colle-joint-polymere-ms-300-ml/']].forEach(function (l) {
-      var tr = document.createElement('tr');
-      [l[0], l[1], l[2].toFixed(2).replace('.', ',') + ' €'].forEach(function (v, i) {
+    var somme = 0, nPlaques = 0, economie = 0;
+    function ligne(nom, qte, total, url, gras) {
+      var tr = document.createElement('tr'); if (gras) tr.className = 'somme';
+      [nom, qte, total].forEach(function (v, k) {
         var td = document.createElement('td');
-        if (i === 0) { var a = document.createElement('a'); a.href = l[3]; a.target = '_blank'; a.rel = 'noopener'; a.textContent = v + ' ↗'; a.style.color = 'inherit'; td.appendChild(a); }
-        else { td.textContent = v; td.className = 'cote'; }
+        if (k === 0 && url) { var a = document.createElement('a'); a.href = url; a.target = '_blank'; a.rel = 'noopener'; a.textContent = v + ' ↗'; a.style.color = 'inherit'; td.appendChild(a); }
+        else { td.textContent = v; if (k) td.className = 'cote'; }
         tr.appendChild(td);
       });
       tot.appendChild(tr);
+    }
+    Object.keys(parRef).forEach(function (r) {
+      var g = parRef[r], prix = parseFloat(g.p.prix) || 59;
+      var n = g.entieres + g.coupes.length, nmin = g.entieres + ffd(g.coupes, PW);
+      nPlaques += n; economie += (n - nmin) * prix; somme += n * prix;
+      ligne('Panneau PVC ' + r + ' (260 × 122 cm)', n + ' × ' + euros(prix), euros(n * prix), g.p.url);
     });
-    var somme = nP * prixP + nB * 8.9 + nC * 6.9;
-    var tr = document.createElement('tr'); tr.className = 'somme';
-    ['Total', '', somme.toFixed(2).replace('.', ',') + ' €'].forEach(function (v, i) { var td = document.createElement('td'); td.textContent = v; if (i) td.className = 'cote'; tr.appendChild(td); });
-    tot.appendChild(tr);
-    document.getElementById('note-chutes').textContent = 'En réutilisant les chutes, ' + nPc + ' plaques peuvent suffire (soit ' +
-      ((nP - nPc) * prixP).toFixed(2).replace('.', ',') + ' € de moins), mais le motif ne se suivra plus sur les morceaux faits avec une chute.';
+    var nB = profilsMm.length ? ffd(profilsMm, 2600) : 0;
+    if (nB) { somme += nB * 8.9; ligne('Profilé de finition aluminium 260 cm', nB + ' × 8,90 €', euros(nB * 8.9), 'https://homedesign59.fr/produit/profile-de-finition-aluminium-pour-panneau-pvc/'); }
+    if (nPlaques) { somme += nPlaques * 2 * 6.9; ligne('Colle et joint polymère MS 300 ml (2 par plaque)', nPlaques * 2 + ' × 6,90 €', euros(nPlaques * 2 * 6.9), 'https://homedesign59.fr/produit/colle-joint-polymere-ms-300-ml/'); }
+    ligne('Total', '', euros(somme), null, true);
+    document.getElementById('note-chutes').textContent = economie > 0 ?
+      'En réutilisant les chutes d\'un même panneau d\'un mur à l\'autre, on peut économiser ' + euros(economie) + ', mais le motif ne se suivra plus sur les morceaux faits avec une chute.' : '';
   }
 
-  function choisir(i, premier) {
-    actuel = i;
-    var cl = calques['Panneaux PVC'];
-    document.querySelectorAll('.tuile').forEach(function (b) { b.setAttribute('aria-pressed', 'false'); });
-    var info = document.getElementById('actuel');
-    if (i < 0) {
-      if (cl) cl.visible = false;
-      document.getElementById('tuile-aucun').setAttribute('aria-pressed', 'true');
-      info.innerHTML = '<strong>Sans panneaux</strong>';
-      history.replaceState(null, '', '#aucun');
-      return;
-    }
-    var p = liste[i];
-    if (cl) cl.visible = true;
-    var tb = document.getElementById('tuile-' + p.ref);
-    tb.setAttribute('aria-pressed', 'true');
-    if (!premier) tb.scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'smooth' });
-    info.innerHTML = '';
-    var s1 = document.createElement('strong'); s1.textContent = p.ref;
-    var RAC = { 3: 'raccord des motifs ★★★ : jonctions presque invisibles', 2: 'raccord des motifs ★★☆ : jonctions discrètes', 1: 'raccord des motifs ★☆☆ : motif très marqué, les jonctions se voient' };
-    var s2 = document.createElement('span'); s2.textContent = p.nom + (p.prix ? ' · ' + p.prix.replace('.00', '') + ' la plaque' : '') + ' · ' + RAC[p.raccord || 2] + (p.approx ? ' · texture approximative' : '');
-    var a = document.createElement('a'); a.href = p.url; a.target = '_blank'; a.rel = 'noopener'; a.textContent = 'Acheter ce panneau sur homedesign59.fr ↗';
-    info.appendChild(s1); info.appendChild(s2); info.appendChild(a);
-    history.replaceState(null, '', '#' + p.ref);
-    if (cacheTex[p.ref]) { appliquerTexture(cacheTex[p.ref], p); return; }
-    texLoader.load(p.texture, function (t) { cacheTex[p.ref] = t; if (actuel === i) appliquerTexture(t, p); });
-  }
-  document.getElementById('prec').addEventListener('click', function () { if (liste) choisir(actuel <= -1 ? liste.length - 1 : actuel - 1); });
-  document.getElementById('suiv').addEventListener('click', function () { if (liste) choisir(actuel >= liste.length - 1 ? -1 : actuel + 1); });
+  document.getElementById('prec').addEventListener('click', function () {
+    if (!liste) return; var i = choixActif(); if (i === null) i = 0; poser(i <= -1 ? liste.length - 1 : i - 1);
+  });
+  document.getElementById('suiv').addEventListener('click', function () {
+    if (!liste) return; var i = choixActif(); if (i === null) i = -1; poser(i >= liste.length - 1 ? -1 : i + 1);
+  });
   document.getElementById('profils').addEventListener('change', function (e) {
     profilsOn = e.target.checked;
     e.target.closest('.chip').classList.toggle('on', profilsOn);
+    if (calep && liste) majPlan();
   });
+  function zoneVisible(o) {
+    var z = o.userData.zone;
+    if (!z) return true;
+    return choix[z] !== undefined && choix[z] >= 0;
+  }
   var murs = [];
   var plafond = null;
   var structureMats = [];
@@ -438,10 +456,10 @@ tr.somme td { font-weight: 600; }
       if (/^CALQUE/.test(o.name)) calques[nomCalque(o.name)] = o;
       var m = /^Mur_([A-Z])$/.exec(o.name);
       if (m) murs.push({ lettre: m[1], obj: o, autres: [] });
-      if (/^Panneaux_mur_/.test(o.name)) panneauxObjs.push(o);
-      var pm = /^Panneaux_mur_([A-Z])_(\d+)$/.exec(o.name);
-      if (pm) o.traverse(function (x) { if (x.isMesh) { x.material = x.material.clone(); pieces.push({ L: pm[1], j: +pm[2], mesh: x }); } });
-      if (/^Profil/.test(o.name)) profils.push(o);
+      var pm = /^Panneaux_mur_([A-Z])_zone_([A-Za-z0-9]+)_(\d+)$/.exec(o.name);
+      if (pm) { o.userData.zone = pm[2]; o.traverse(function (x) { if (x.isMesh) { x.material = x.material.clone(); pieces.push({ L: pm[1], zone: pm[2], j: +pm[3], mesh: x }); } }); }
+      var zp = /^Profil\S*_zone_([A-Za-z0-9]+)_/.exec(o.name);
+      if (zp) { o.userData.zone = zp[1]; profils.push(o); }
       if (o.isMesh && o.material) {
         o.material.side = THREE.DoubleSide;
       }
@@ -450,10 +468,9 @@ tr.somme td { font-weight: 600; }
       var v = /(?:^Vitre_mur_|^Panneaux_mur_|^Profil\S*_mur_)([A-Z])(?:_|$)/.exec(o.name);
       if (v) murs.forEach(function (w) { if (w.lettre === v[1]) w.autres.push(o); });
     });
-    panneauxObjs.forEach(function (o) { o.traverse(function (x) { if (x.isMesh && panneauMats.indexOf(x.material) < 0) panneauMats.push(x.material); }); });
     modeleCharge = true;
-    window.cuisine3d = { calques: calques, panneauMats: panneauMats, profils: profils };
-    demarrerPanneaux();
+    window.cuisine3d = { calques: calques, pieces: pieces, profils: profils, choix: choix };
+    demarrer();
     var st = calques['Structure'];
     if (st) st.traverse(function (o) {
       if (o.isMesh && !/^Vitre/.test(o.name)) {
@@ -548,7 +565,7 @@ tr.somme td { font-weight: 600; }
       tmp.set(camera.position.x - w.c.x, 0, camera.position.z - w.c.z);
       var cache = !dedans && camera.position.y < hauteur * 4 && tmp.dot(w.out) > 0.05;
       w.obj.visible = !cache;
-      w.autres.forEach(function (o) { o.visible = !cache && (!/^Profil/.test(o.name) || profilsOn); });
+      w.autres.forEach(function (o) { o.visible = !cache && zoneVisible(o) && (!/^Profil/.test(o.name) || profilsOn); });
     });
     renderer.render(scene, camera);
   }
