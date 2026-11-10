@@ -58,6 +58,18 @@ td.cote { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-
 @media (max-width: 720px) { .two { grid-template-columns: minmax(0, 1fr); } }
 p { margin: 0; max-width: 65ch; }
 footer { color: var(--muted); font-size: 13px; }
+.panneaux { display: grid; gap: 10px; min-width: 0; }
+.panneaux .tete { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; justify-content: space-between; }
+.actuel { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: baseline; font-size: 14px; }
+.actuel strong { font-size: 16px; }
+.actuel a { color: var(--fg); }
+.bande { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 6px; scroll-snap-type: x proximity; }
+.tuile { flex: 0 0 auto; width: 64px; display: grid; gap: 4px; justify-items: center; font: 11px var(--f-mono); color: var(--fg);
+  background: var(--bg); border: 1px solid transparent; padding: 3px; cursor: pointer; scroll-snap-align: start; }
+.tuile img { width: 56px; height: 120px; object-fit: cover; border: 1px solid var(--line); display: block; }
+.tuile .aucun { width: 56px; height: 120px; border: 1px dashed var(--line); display: grid; place-items: center; font-size: 11px; }
+.tuile[aria-pressed="true"] { border-color: var(--fg); outline: 2px solid var(--fg); outline-offset: -1px; }
+.tuile:focus-visible { outline: 2px solid var(--fg); }
 </style>
 
 <style>html,body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
@@ -89,6 +101,19 @@ footer { color: var(--muted); font-size: 13px; }
         <button class="chip" id="vue-entree" type="button">Depuis l'entrée</button>
         <label class="chip"><input type="checkbox" id="plafond"> Plafond</label>
       </div>
+    </div>
+    <div class="panneaux" aria-label="Panneaux muraux">
+      <div class="tete">
+        <h2>Panneaux muraux</h2>
+        <div class="group">
+          <button class="chip" id="prec" type="button" aria-label="Panneau précédent">←</button>
+          <button class="chip" id="suiv" type="button" aria-label="Panneau suivant">→</button>
+          <label class="chip on" id="chip-profils"><input type="checkbox" id="profils" checked> Profilés alu</label>
+        </div>
+      </div>
+      <div class="actuel" id="actuel">Chargement des panneaux…</div>
+      <div class="bande" id="bande" role="group" aria-label="Choisir un panneau"></div>
+      <p style="color:var(--muted);font-size:13px">Panneaux PVC 260 × 122 cm et profilés aluminium argent de Home Design 59, posés sur les 4 murs. Les profilés sont dessinés entre chaque panneau (largeur supposée 2 cm).</p>
     </div>
     <p style="color:var(--muted);font-size:14px">Les murs côté caméra s'effacent pour voir l'intérieur. Avec Eau ou Électricité, les murs deviennent transparents pour montrer ce qui passe dedans.</p>
   </section>
@@ -134,7 +159,7 @@ footer { color: var(--muted); font-size: 13px; }
     </div>
   </section>
 
-  <footer>Maquette faite avec Blender. Les plans eau et électricité servent à préparer les travaux ; l'installation électrique suit la norme NF C 15-100.</footer>
+  <footer>Maquette faite avec Blender. Panneaux et profilés : homedesign59.fr. Les plans eau et électricité servent à préparer les travaux ; l'installation électrique suit la norme NF C 15-100.</footer>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -177,6 +202,82 @@ footer { color: var(--muted); font-size: 13px; }
   controls.maxDistance = 25;
 
   var calques = {};
+  var panneauxObjs = [], panneauMats = [], profils = [], profilsOn = true, modeleCharge = false;
+  var liste = null, actuel = -1, cacheTex = {};
+  var texLoader = new THREE.TextureLoader();
+  fetch('panneaux/panneaux.json').then(function (r) { return r.json(); }).then(function (l) { liste = l; construireBande(); demarrerPanneaux(); })
+    .catch(function () { document.getElementById('actuel').textContent = "La liste des panneaux n'a pas pu se charger."; });
+
+  function construireBande() {
+    var bande = document.getElementById('bande');
+    var b0 = document.createElement('button');
+    b0.type = 'button'; b0.className = 'tuile'; b0.id = 'tuile-aucun'; b0.setAttribute('aria-pressed', 'false');
+    b0.innerHTML = '<span class="aucun">aucun</span><span>sans</span>';
+    b0.addEventListener('click', function () { choisir(-1); });
+    bande.appendChild(b0);
+    liste.forEach(function (p, i) {
+      var b = document.createElement('button');
+      b.type = 'button'; b.className = 'tuile'; b.id = 'tuile-' + p.ref; b.setAttribute('aria-pressed', 'false');
+      b.title = p.nom;
+      var im = document.createElement('img'); im.src = p.vignette; im.alt = p.ref; im.loading = 'lazy';
+      var t = document.createElement('span'); t.textContent = p.ref;
+      b.appendChild(im); b.appendChild(t);
+      b.addEventListener('click', function () { choisir(i); });
+      bande.appendChild(b);
+    });
+  }
+
+  function demarrerPanneaux() {
+    if (!liste || !modeleCharge) return;
+    var h = decodeURIComponent((location.hash || '').slice(1)).toUpperCase();
+    var i = liste.findIndex(function (p) { return p.ref === h; });
+    choisir(h === 'AUCUN' ? -1 : (i >= 0 ? i : 0), true);
+  }
+
+  function appliquerTexture(t) {
+    panneauMats.forEach(function (mat) {
+      var old = mat.map;
+      t.flipY = false; t.encoding = THREE.sRGBEncoding;
+      t.wrapS = t.wrapT = THREE.RepeatWrapping;
+      if (old) { t.offset.copy(old.offset); t.repeat.copy(old.repeat); t.rotation = old.rotation; t.center.copy(old.center); }
+      t.anisotropy = renderer.capabilities.getMaxAnisotropy();
+      t.needsUpdate = true;
+      mat.map = t; mat.needsUpdate = true;
+    });
+  }
+
+  function choisir(i, premier) {
+    actuel = i;
+    var cl = calques['Panneaux PVC'];
+    document.querySelectorAll('.tuile').forEach(function (b) { b.setAttribute('aria-pressed', 'false'); });
+    var info = document.getElementById('actuel');
+    if (i < 0) {
+      if (cl) cl.visible = false;
+      document.getElementById('tuile-aucun').setAttribute('aria-pressed', 'true');
+      info.innerHTML = '<strong>Sans panneaux</strong>';
+      history.replaceState(null, '', '#aucun');
+      return;
+    }
+    var p = liste[i];
+    if (cl) cl.visible = true;
+    var tb = document.getElementById('tuile-' + p.ref);
+    tb.setAttribute('aria-pressed', 'true');
+    if (!premier) tb.scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'smooth' });
+    info.innerHTML = '';
+    var s1 = document.createElement('strong'); s1.textContent = p.ref;
+    var s2 = document.createElement('span'); s2.textContent = p.nom + (p.prix ? ' · ' + p.prix + ' la plaque' : '') + (p.approx ? ' · texture approximative' : '');
+    var a = document.createElement('a'); a.href = p.url; a.target = '_blank'; a.rel = 'noopener'; a.textContent = 'Voir sur le site ↗';
+    info.appendChild(s1); info.appendChild(s2); info.appendChild(a);
+    history.replaceState(null, '', '#' + p.ref);
+    if (cacheTex[p.ref]) { appliquerTexture(cacheTex[p.ref]); return; }
+    texLoader.load(p.texture, function (t) { cacheTex[p.ref] = t; if (actuel === i) appliquerTexture(t); });
+  }
+  document.getElementById('prec').addEventListener('click', function () { if (liste) choisir(actuel <= -1 ? liste.length - 1 : actuel - 1); });
+  document.getElementById('suiv').addEventListener('click', function () { if (liste) choisir(actuel >= liste.length - 1 ? -1 : actuel + 1); });
+  document.getElementById('profils').addEventListener('change', function (e) {
+    profilsOn = e.target.checked;
+    e.target.closest('.chip').classList.toggle('on', profilsOn);
+  });
   var murs = [];
   var plafond = null;
   var structureMats = [];
@@ -190,15 +291,20 @@ footer { color: var(--muted); font-size: 13px; }
     root.traverse(function (o) {
       if (/^CALQUE/.test(o.name)) calques[nomCalque(o.name)] = o;
       var m = /^Mur_([A-Z])$/.exec(o.name);
-      if (m) murs.push({ lettre: m[1], obj: o });
+      if (m) murs.push({ lettre: m[1], obj: o, autres: [] });
+      if (/^Panneaux_mur_/.test(o.name)) panneauxObjs.push(o);
+      if (/^Profil/.test(o.name)) profils.push(o);
       if (o.isMesh && o.material) {
         o.material.side = THREE.DoubleSide;
       }
     });
     root.traverse(function (o) {
-      var v = /^Vitre_mur_([A-Z])$/.exec(o.name);
-      if (v) murs.forEach(function (w) { if (w.lettre === v[1]) w.vitre = o; });
+      var v = /(?:^Vitre_mur_|^Panneaux_mur_|^Profil\S*_mur_)([A-Z])(?:_|$)/.exec(o.name);
+      if (v) murs.forEach(function (w) { if (w.lettre === v[1]) w.autres.push(o); });
     });
+    panneauxObjs.forEach(function (o) { o.traverse(function (x) { if (x.isMesh && panneauMats.indexOf(x.material) < 0) panneauMats.push(x.material); }); });
+    modeleCharge = true;
+    demarrerPanneaux();
     var st = calques['Structure'];
     if (st) st.traverse(function (o) {
       if (o.isMesh && !/^Vitre/.test(o.name)) {
@@ -293,7 +399,7 @@ footer { color: var(--muted); font-size: 13px; }
       tmp.set(camera.position.x - w.c.x, 0, camera.position.z - w.c.z);
       var cache = !dedans && camera.position.y < hauteur * 4 && tmp.dot(w.out) > 0.05;
       w.obj.visible = !cache;
-      if (w.vitre) w.vitre.visible = !cache;
+      w.autres.forEach(function (o) { o.visible = !cache && (!/^Profil/.test(o.name) || profilsOn); });
     });
     renderer.render(scene, camera);
   }
