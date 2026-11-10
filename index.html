@@ -120,7 +120,10 @@ tr.somme td { font-weight: 600; }
       <div class="group">
         <label class="chip on"><input type="checkbox" id="opt-hauts" checked> Meubles hauts</label>
         <label class="chip on"><input type="checkbox" id="opt-credence" checked> Crédence</label>
+        <label class="chip on"><input type="checkbox" id="opt-sol" checked> Sol en marbre blanc (par-dessus le carrelage)</label>
       </div>
+      <h3 style="margin:4px 0 0;font-size:15px">Au-dessus de la plaque (proposition 4)</h3>
+      <div class="zones" id="dessus-plaque" role="group" aria-label="Au-dessus de la plaque"></div>
     </div>
     <div class="panneaux" aria-label="Lumière">
       <h2>Lumière</h2>
@@ -206,8 +209,17 @@ tr.somme td { font-weight: 600; }
 
   <section>
     <h2>Sol</h2>
-    <p>Dalles de marbre blanc veiné gris, 60 × 120 cm (le même marbre que le plan de travail et la crédence), posées dans le sens de la longueur, joint fin gris clair. Chaque dalle a son propre dessin de veines et est posée dans un sens ou dans l'autre pour éviter l'effet répété.</p>
-    <p style="color:var(--muted);font-size:14px">Ancien choix gardé de côté : carreaux rouge sang de bœuf, beige moucheté et terre cuite posés au hasard.</p>
+    <p>Deux couches au choix (case « Sol en marbre blanc » dans Aménagement) : le carrelage choisi au départ, et par-dessus des dalles de marbre blanc veiné gris 60 × 120 cm (le même marbre que le plan de travail et la crédence), joint fin gris clair, chaque dalle avec son propre dessin de veines.</p>
+    <div class="two">
+      <figure>
+        <img src="carreaux.webp" alt="Trois carreaux échantillons : rouge sang de bœuf, beige moucheté, terre cuite" loading="lazy">
+        <figcaption>Le carrelage du dessous : 3 teintes posées au hasard, 20 × 20 cm (supposé).</figcaption>
+      </figure>
+      <figure>
+        <img src="sol-marbre.jpg" alt="Dalles de marbre blanc veiné gris" loading="lazy" style="max-height:340px;object-fit:cover">
+        <figcaption>Le marbre blanc du dessus, en dalles de 60 × 120 cm.</figcaption>
+      </figure>
+    </div>
   </section>
 
   <footer>Maquette faite avec Blender. Panneaux et profilés : homedesign59.fr. Les plans eau et électricité servent à préparer les travaux ; l'installation électrique suit la norme NF C 15-100.</footer>
@@ -254,7 +266,7 @@ tr.somme td { font-weight: 600; }
   controls.minDistance = 0.8;
   controls.maxDistance = 25;
 
-  var VERSION = '20';
+  var VERSION = '21';
   var calques = {};
   var profils = [], profilsOn = true, modeleCharge = false;
   var liste = null, cacheTex = {}, pieces = [], calep = null;
@@ -316,6 +328,8 @@ tr.somme td { font-weight: 600; }
       if (m.am !== undefined) amenActive = m.am === '0' ? 'aucun' : 'Cuisine ' + m.am;
       if (m.lum && ['jour', 'chaude', 'blanche', 'nuit'].indexOf(m.lum) >= 0) ambiance = m.lum;
       if (m.led && ['violet', 'rose', 'bleu', 'chaud'].indexOf(m.led) >= 0) ledCouleur = m.led;
+      if (m.dp && ['marbre', 'etageres', 'barre', 'rien'].indexOf(m.dp) >= 0) dessusPlaque = m.dp;
+      if (m.sol) { document.getElementById('opt-sol').checked = m.sol !== 'carreaux'; majChips(); }
       DZ.forEach(function (z) { if (m[z.id] && deco) { var k = deco.findIndex(function (x) { return x.ref === m[z.id]; }); choixDeco[z.id] = k; } });
       zones().forEach(function (z) { choix[z.id] = m[z.id] !== undefined ? parRef(m[z.id]) : 0; });
     } else {
@@ -476,7 +490,11 @@ tr.somme td { font-weight: 600; }
   // ---------- aménagement, étiquettes, lumière
   var amen = null, amenActive = 'Cuisine 4', ambiance = 'jour';
   var etiquettes = [], ledObjs = [], ledLights = [], plafonniers = [], glows = [], spotMeshes = [];
-  var ledCouleur = 'violet';
+  var ledCouleur = 'violet', dessusPlaque = 'marbre', solMarbre = null;
+  var DP = [{ id: 'marbre', nom: 'Marbre rétroéclairé', sm: 'la plaque de marbre s\'allume' },
+            { id: 'etageres', nom: 'Étagères flottantes', sm: '2 étagères noires + LED' },
+            { id: 'barre', nom: 'Barre à ustensiles', sm: 'inox, ustensiles suspendus' },
+            { id: 'rien', nom: 'Rien', sm: 'crédence seule' }];
   var LEDC = [{ id: 'violet', nom: 'LED violettes', c: 0xb14cff }, { id: 'rose', nom: 'LED roses', c: 0xff4fa3 },
               { id: 'bleu', nom: 'LED bleues', c: 0x3d7bff }, { id: 'chaud', nom: 'LED blanc chaud', c: 0xffc98a }];
   var AMB = [
@@ -508,6 +526,16 @@ tr.somme td { font-weight: 600; }
       b.appendChild(t); b.appendChild(sm);
       b.addEventListener('click', function () { ledCouleur = c.id; construireAmen(); appliquerAmen(); majHash(); });
       bl.appendChild(b);
+    });
+    var bp = document.getElementById('dessus-plaque'); bp.innerHTML = '';
+    DP.forEach(function (c) {
+      var b = document.createElement('button'); b.type = 'button'; b.className = 'chip';
+      b.setAttribute('aria-pressed', c.id === dessusPlaque ? 'true' : 'false');
+      var t = document.createElement('span'); t.textContent = c.nom;
+      var sm = document.createElement('small'); sm.textContent = c.sm;
+      b.appendChild(t); b.appendChild(sm);
+      b.addEventListener('click', function () { dessusPlaque = c.id; construireAmen(); appliquerAmen(); majHash(); });
+      bp.appendChild(b);
     });
     var bx = document.getElementById('ambiances'); bx.innerHTML = '';
     AMB.forEach(function (a) {
@@ -566,6 +594,22 @@ tr.somme td { font-weight: 600; }
     var sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tx, depthTest: false, transparent: true }));
     sp.renderOrder = 10; var h = 0.13; sp.scale.set(h * cv.width / cv.height, h, 1);
     return sp;
+  }
+
+  function preparerSol(root) {
+    var sol = root.getObjectByName('Sol'); if (!sol) return;
+    var m0 = null; sol.traverse(function (x) { if (x.isMesh && !m0) m0 = x; }); if (!m0) return;
+    var mat = new THREE.MeshStandardMaterial({ roughness: 0.18, metalness: 0.0 });
+    var copie = new THREE.Mesh(m0.geometry, mat);
+    m0.updateMatrixWorld(true); copie.applyMatrix4(m0.matrixWorld); copie.position.y += 0.002;
+    scene.add(copie); solMarbre = copie;
+    texLoader.load('sol-marbre.jpg?v=' + VERSION, function (t) {
+      var old = m0.material.map;
+      t.flipY = false; t.encoding = THREE.sRGBEncoding; t.wrapS = t.wrapT = THREE.RepeatWrapping;
+      if (old) { t.offset.copy(old.offset); t.repeat.copy(old.repeat); t.rotation = old.rotation; t.center.copy(old.center); }
+      t.anisotropy = renderer.capabilities.getMaxAnisotropy();
+      mat.map = t; mat.needsUpdate = true;
+    });
   }
 
   function preparerAmen(root) {
@@ -627,7 +671,10 @@ tr.somme td { font-weight: 600; }
       var c = calques[n]; if (!c) return;
       c.traverse(function (o) {
         if (o === c || !o.name) return;
-        if (/^Haut_/.test(o.name)) o.visible = hauts;
+        if (/^DessusPlaque_etagere/.test(o.name)) o.visible = dessusPlaque === 'etageres';
+        else if (/^DessusPlaque_barre/.test(o.name)) o.visible = dessusPlaque === 'barre';
+        else if (/^DessusPlaque_marbre/.test(o.name)) o.visible = dessusPlaque === 'marbre';
+        else if (/^Haut_/.test(o.name)) o.visible = hauts;
         else if (/^Crédence_/.test(o.name)) o.visible = cred;
         else if (/^LED_haut/.test(o.name)) o.visible = hauts && lh;
         else if (/LED_plinthe/.test(o.name)) o.visible = lp;
@@ -658,15 +705,25 @@ tr.somme td { font-weight: 600; }
       var on = R.pi > 0; m.material.emissive = new THREE.Color(on ? R.pc : 0x000000); m.material.emissiveIntensity = on ? 1.5 : 0; m.material.color = new THREE.Color(on ? 0xffffff : 0xdddddd);
     });
     if (R.bg === null) fond(); else scene.background = new THREE.Color(R.bg);
+    Object.keys(calques).forEach(function (n) {
+      if (!/^Cuisine /.test(n)) return;
+      calques[n].traverse(function (o) {
+        if (o.isMesh && /DessusPlaque_marbre/.test((o.parent && o.parent.name || '') + o.name) && o.material.map) {
+          o.material.emissiveMap = o.material.map; o.material.emissive = new THREE.Color(0xfff4e6);
+          o.material.emissiveIntensity = ambiance === 'jour' ? 0.35 : 1.15; o.material.needsUpdate = true;
+        }
+      });
+    });
+    if (solMarbre) solMarbre.visible = document.getElementById('opt-sol').checked;
   }
 
   function majChips() {
-    ['opt-hauts', 'opt-credence', 'led-haut', 'led-plinthe', 'led-plafond'].forEach(function (k) {
+    ['opt-hauts', 'opt-credence', 'opt-sol', 'led-haut', 'led-plinthe', 'led-plafond'].forEach(function (k) {
       var e = document.getElementById(k); e.closest('.chip').classList.toggle('on', e.checked);
     });
   }
-  ['opt-hauts', 'opt-credence', 'led-haut', 'led-plinthe', 'led-plafond'].forEach(function (k) {
-    document.getElementById(k).addEventListener('change', function () { majChips(); appliquerAmen(); });
+  ['opt-hauts', 'opt-credence', 'opt-sol', 'led-haut', 'led-plinthe', 'led-plafond'].forEach(function (k) {
+    document.getElementById(k).addEventListener('change', function () { majChips(); appliquerAmen(); majHash(); });
   });
 
   function majHash() {
@@ -675,6 +732,8 @@ tr.somme td { font-weight: 600; }
     parts.push('am=' + (amenActive === 'aucun' ? '0' : amenActive.slice(-1)));
     parts.push('lum=' + ambiance);
     parts.push('led=' + ledCouleur);
+    parts.push('dp=' + dessusPlaque);
+    parts.push('sol=' + (document.getElementById('opt-sol').checked ? 'marbre' : 'carreaux'));
     history.replaceState(null, '', '#' + parts.join('&'));
   }
 
@@ -838,6 +897,7 @@ tr.somme td { font-weight: 600; }
     });
 
     preparerAmen(root);
+    preparerSol(root);
     document.querySelectorAll('[data-calque]').forEach(function (cb) {
       var obj = calques[cb.dataset.calque];
       var vide = !obj || !obj.children.some(function (c) { var n = 0; c.traverse(function (x) { if (x.isMesh) n++; }); return n > 0; });
