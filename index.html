@@ -174,6 +174,7 @@ footer { color: var(--muted); font-size: 13px; }
     statusEl.textContent = "La 3D n'a pas pu se charger. Recharge la page.";
     return;
   }
+  window.cuisine3d = {};
   var renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
   renderer.outputEncoding = THREE.sRGBEncoding;
@@ -201,11 +202,12 @@ footer { color: var(--muted); font-size: 13px; }
   controls.minDistance = 0.8;
   controls.maxDistance = 25;
 
+  var VERSION = '4';
   var calques = {};
   var panneauxObjs = [], panneauMats = [], profils = [], profilsOn = true, modeleCharge = false;
   var liste = null, actuel = -1, cacheTex = {};
   var texLoader = new THREE.TextureLoader();
-  fetch('panneaux/panneaux.json').then(function (r) { return r.json(); }).then(function (l) { liste = l; construireBande(); demarrerPanneaux(); })
+  fetch('panneaux/panneaux.json?v=' + VERSION).then(function (r) { return r.json(); }).then(function (l) { liste = l; construireBande(); demarrerPanneaux(); })
     .catch(function () { document.getElementById('actuel').textContent = "La liste des panneaux n'a pas pu se charger."; });
 
   function construireBande() {
@@ -285,7 +287,7 @@ footer { color: var(--muted); font-size: 13px; }
 
   function nomCalque(n) { return n.replace(/^CALQUE_?/, '').replace(/_/g, ' '); }
 
-  new THREE.GLTFLoader().load('cuisine.glb', function (g) {
+  new THREE.GLTFLoader().load('cuisine.glb?v=' + VERSION, function (g) {
     var root = g.scene;
     scene.add(root);
     root.traverse(function (o) {
@@ -304,6 +306,7 @@ footer { color: var(--muted); font-size: 13px; }
     });
     panneauxObjs.forEach(function (o) { o.traverse(function (x) { if (x.isMesh && panneauMats.indexOf(x.material) < 0) panneauMats.push(x.material); }); });
     modeleCharge = true;
+    window.cuisine3d = { calques: calques, panneauMats: panneauMats, profils: profils };
     demarrerPanneaux();
     var st = calques['Structure'];
     if (st) st.traverse(function (o) {
