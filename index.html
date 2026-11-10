@@ -259,7 +259,7 @@ tr.somme td { font-weight: 600; }
   controls.minDistance = 0.8;
   controls.maxDistance = 25;
 
-  var VERSION = '15';
+  var VERSION = '16';
   var calques = {};
   var profils = [], profilsOn = true, modeleCharge = false;
   var liste = null, cacheTex = {}, pieces = [], calep = null;
@@ -654,7 +654,8 @@ tr.somme td { font-weight: 600; }
     ledLights.forEach(function (l) { l.li.color.copy(l.genre === 'plafond' ? accent : ledCol); l.li.intensity = visibleVraiment(l.obj) ? R.li : 0; });
     ledObjs.forEach(function (m) {
       var c = (m.userData.genre === 'accent' || m.userData.genre === 'plafond') ? accent : ledCol;
-      m.material.emissive = c.clone(); m.material.emissiveIntensity = ambiance === 'jour' ? 0.9 : 2.4; m.material.color = c.clone();
+      m.material.emissive = c.clone(); m.material.color = c.clone();
+      m.material.emissiveIntensity = m.userData.genre === 'vitrine' ? (ambiance === 'jour' ? 0.15 : 0.45) : (ambiance === 'jour' ? 0.9 : 2.4);
     });
     glows.forEach(function (g) { g.m.visible = visibleVraiment(g.obj); g.m.material.color.copy(accent).multiplyScalar(ambiance === 'jour' ? 0.45 : 1.0); });
     spotMeshes.forEach(function (m) {
