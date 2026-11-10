@@ -259,7 +259,7 @@ tr.somme td { font-weight: 600; }
   controls.minDistance = 0.8;
   controls.maxDistance = 25;
 
-  var VERSION = '18';
+  var VERSION = '19';
   var calques = {};
   var profils = [], profilsOn = true, modeleCharge = false;
   var liste = null, cacheTex = {}, pieces = [], calep = null;
@@ -588,12 +588,13 @@ tr.somme td { font-weight: 600; }
         vers = Math.abs(vers.dot(dir)) > 0.0 ? vers.sub(dir.clone().multiplyScalar(vers.dot(dir))).normalize() : vers.normalize();
         var genre = /LED_haut_vitrine/.test(o.name) ? 'vitrine' : /^LED_haut/.test(o.name) ? 'haut' : /LED_plinthe/.test(o.name) ? 'accent' : /^LED_plafond/.test(o.name) ? 'plafond' : 'accent';
         o.userData.genre = genre;
-        if (genre === 'haut' || genre === 'plafond') {
+        if (genre === 'haut' || genre === 'plafond' || (genre === 'accent' && c2.y > 0.5)) {
           var n = genre === 'plafond' ? 1 : Math.max(1, Math.round(L / 1.2));
           for (var k = 0; k < n; k++) {
             var li = new THREE.PointLight(0xffd29a, 0, genre === 'plafond' ? 4 : 1.6, 2);
             li.position.copy(c2).addScaledVector(dir, (k + 0.5 - n / 2) * L / n).addScaledVector(vers, 0.12);
             if (genre === 'plafond') li.position.y -= 0.2;
+            if (genre === 'accent') { li.position.y -= 0.25; li.distance = 1.5; }
             scene.add(li); ledLights.push({ li: li, obj: o, genre: genre });
           }
         }
@@ -651,7 +652,7 @@ tr.somme td { font-weight: 600; }
     hemi.color.setHex(R.hc); hemi.intensity = R.hi;
     sun.intensity = R.si;
     plafonniers.forEach(function (p) { p.intensity = R.pi; p.color.setHex(R.pc); });
-    ledLights.forEach(function (l) { l.li.color.copy(l.genre === 'plafond' ? accent : ledCol); l.li.intensity = visibleVraiment(l.obj) ? R.li : 0; });
+    ledLights.forEach(function (l) { l.li.color.copy(l.genre === 'plafond' || l.genre === 'accent' ? accent : ledCol); l.li.intensity = visibleVraiment(l.obj) ? R.li : 0; });
     ledObjs.forEach(function (m) {
       var c = (m.userData.genre === 'accent' || m.userData.genre === 'plafond') ? accent : ledCol;
       m.material.emissive = c.clone(); m.material.color = c.clone();
