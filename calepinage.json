@@ -1,0 +1,77 @@
+{
+ "Panneaux PVC": {
+  "plaque_mm": [
+   1220,
+   2600
+  ],
+  "hauteur_posee_mm": 2500,
+  "murs": [
+   {
+    "mur": "A",
+    "nom": "bas · entrée",
+    "longueur_mm": 2476,
+    "largeurs_mm": [
+     1220,
+     628,
+     628
+    ],
+    "ouvertures": [
+     "Porte d'entrée"
+    ]
+   },
+   {
+    "mur": "B",
+    "nom": "évier · terrasse",
+    "longueur_mm": 4830,
+    "largeurs_mm": [
+     1220,
+     1220,
+     1220,
+     1170
+    ],
+    "ouvertures": [
+     "Porte terrasse"
+    ]
+   },
+   {
+    "mur": "C",
+    "nom": "fenêtre",
+    "longueur_mm": 2360,
+    "largeurs_mm": [
+     1220,
+     1140
+    ],
+    "ouvertures": [
+     "Fenêtre"
+    ]
+   },
+   {
+    "mur": "D",
+    "nom": "grand mur",
+    "longueur_mm": 4080,
+    "largeurs_mm": [
+     1220,
+     1220,
+     1220,
+     420
+    ],
+    "ouvertures": []
+   }
+  ],
+  "profils_mm": [
+   2050,
+   2050,
+   850,
+   2160,
+   2160,
+   1170,
+   1160,
+   1160,
+   1020,
+   1020
+  ],
+  "plaques_sans_chutes": 13,
+  "plaques_avec_chutes": 12,
+  "barres_profil": 7
+ }
+}
