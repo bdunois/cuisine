@@ -218,7 +218,7 @@ tr.somme td { font-weight: 600; }
   controls.minDistance = 0.8;
   controls.maxDistance = 25;
 
-  var VERSION = '6';
+  var VERSION = '7';
   var calques = {};
   var panneauxObjs = [], panneauMats = [], profils = [], profilsOn = true, modeleCharge = false;
   var liste = null, actuel = -1, cacheTex = {};
@@ -344,14 +344,15 @@ tr.somme td { font-weight: 600; }
         var lignes = [
           ['Plaque', q.j + ' (en partant de la gauche, face au mur)'],
           ['Taille du panneau', cm(PW) + ' × ' + cm(PH) + ' cm'],
-          ['À découper', 'oui : ' + cm(q.w) + ' × ' + cm(HP) + ' cm' +
-            (coupeL > 1 ? ' (enlever ' + cm(coupeL) + ' cm en largeur, côté ' + (c.ox > 0 ? 'gauche' : 'droit') + ' de la plaque' + ')' : '') +
-            (coupeH > 1 ? (coupeL > 1 ? ' et ' : ' (enlever ') + (c.oz > 0 && c.oz < coupeH ? cm(c.oz) + ' cm en bas + ' + cm(coupeH - c.oz) + ' cm en haut' :
-              cm(coupeH) + ' cm ' + (c.oz > 0 ? 'en bas' : 'en haut')) + ')' : '')],
+          ['À découper', (function () {
+            var parts = [];
+            if (coupeL > 1) parts.push('largeur : enlever ' + cm(coupeL) + ' cm côté ' + (c.ox > 0 ? 'gauche' : 'droit') + ' de la plaque');
+            if (coupeH > 1) parts.push('hauteur : enlever ' + (c.oz > 0 && c.oz < coupeH ? cm(c.oz) + ' cm en bas et ' + cm(coupeH - c.oz) + ' cm en haut' : cm(coupeH) + ' cm ' + (c.oz > 0 ? 'en bas' : 'en haut')));
+            return parts.length ? 'oui → ' + cm(q.w) + ' × ' + cm(HP) + ' cm (' + parts.join(' ; ') + ')' : 'non';
+          })()],
           ['Rotation', c.rot ? 'oui : 180° (posée tête en bas)' : 'non (à l\'endroit)'],
-          ['Prix', p.prix ? p.prix.replace(' €', '') + ' €' : '59 €']
+          ['Prix', (parseFloat(p.prix) || 59).toLocaleString('fr-FR') + ' € la plaque']
         ];
-        if (coupeL <= 1 && coupeH <= 1) lignes[2][1] = 'non';
         lignes.forEach(function (l) {
           var r = document.createElement('div');
           var k = document.createElement('span'); k.className = 'k'; k.textContent = l[0] + ' :';
