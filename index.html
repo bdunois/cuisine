@@ -149,6 +149,13 @@ tr.somme td { font-weight: 600; }
       <div class="bande" id="bande" role="group" aria-label="Choisir un panneau"></div>
       <p style="color:var(--muted);font-size:13px">Panneaux PVC 260 × 122 cm collés bout à bout ; profilés aluminium argent seulement sur les bords visibles (autour de la fenêtre, contre la porte terrasse), largeur visible supposée 1 cm.</p>
     </div>
+    <div class="panneaux" aria-label="Déco murale">
+      <h2>Déco murale : tasseaux et panneaux acoustiques</h2>
+      <p style="color:var(--muted);font-size:13px">Les tasseaux sont des baguettes décoratives en PVC qu'on colle côte à côte : ils donnent du relief, sans rôle technique. Les panneaux acoustiques (lames sur feutre) réduisent l'écho. En cuisine, à garder loin de la plaque et de l'évier (graisse et éclaboussures dans les rainures) : d'où les 3 emplacements proposés. 1. Choisis l'emplacement. 2. Touche un produit.</p>
+      <div class="zones" id="deco-zones" role="group" aria-label="Choisir l'emplacement"></div>
+      <div class="actuel" id="deco-actuel"></div>
+      <div class="bande" id="deco-bande" role="group" aria-label="Choisir un tasseau ou un panneau acoustique"></div>
+    </div>
     <p style="color:var(--muted);font-size:14px">Les murs côté caméra s'effacent pour voir l'intérieur. Avec Eau ou Électricité, les murs deviennent transparents pour montrer ce qui passe dedans.</p>
   </section>
 
@@ -251,7 +258,7 @@ tr.somme td { font-weight: 600; }
   controls.minDistance = 0.8;
   controls.maxDistance = 25;
 
-  var VERSION = '12';
+  var VERSION = '13';
   var calques = {};
   var profils = [], profilsOn = true, modeleCharge = false;
   var liste = null, cacheTex = {}, pieces = [], calep = null;
@@ -312,6 +319,7 @@ tr.somme td { font-weight: 600; }
       var m = {}; h.split('&').forEach(function (kv) { var a = kv.split('='); m[a[0]] = a[1]; });
       if (m.am !== undefined) amenActive = m.am === '0' ? 'aucun' : 'Cuisine ' + m.am;
       if (m.lum && ['jour', 'chaude', 'blanche', 'nuit'].indexOf(m.lum) >= 0) ambiance = m.lum;
+      DZ.forEach(function (z) { if (m[z.id] && deco) { var k = deco.findIndex(function (x) { return x.ref === m[z.id]; }); choixDeco[z.id] = k; } });
       zones().forEach(function (z) { choix[z.id] = m[z.id] !== undefined ? parRef(m[z.id]) : 0; });
     } else {
       var i0 = h ? parRef(h) : 0;
@@ -321,6 +329,7 @@ tr.somme td { font-weight: 600; }
     zones().forEach(function (z) { appliquerZone(z.id); });
     majInfo(); majPlan();
     if (amen) { construireAmen(); majMeubles(); }
+    if (deco) { construireDeco(); appliquerDecoTout(); majPlan(); }
     appliquerAmen();
   }
 
@@ -450,6 +459,7 @@ tr.somme td { font-weight: 600; }
     var nB = profilsMm.length ? ffd(profilsMm, 2600) : 0;
     if (nB) { somme += nB * 8.9; ligne('Profilé de finition aluminium 260 cm', nB + ' × 8,90 €', euros(nB * 8.9), 'https://homedesign59.fr/produit/profile-de-finition-aluminium-pour-panneau-pvc/'); }
     if (nPlaques) { somme += nPlaques * 2 * 6.9; ligne('Colle et joint polymère MS 300 ml (2 par plaque)', nPlaques * 2 + ' × 6,90 €', euros(nPlaques * 2 * 6.9), 'https://homedesign59.fr/produit/colle-joint-polymere-ms-300-ml/'); }
+    somme += decoPlan(box, ligne);
     ligne('Total', '', euros(somme), null, true);
     document.getElementById('note-chutes').textContent = economie > 0 ?
       'En réutilisant les chutes d\'un même panneau d\'un mur à l\'autre, on peut économiser ' + euros(economie) + ', mais le motif ne se suivra plus sur les morceaux faits avec une chute.' : '';
@@ -622,12 +632,119 @@ tr.somme td { font-weight: 600; }
 
   function majHash() {
     var parts = zones().map(function (z) { return z.id + '=' + refDe(choix[z.id]); });
+    DZ.forEach(function (z) { if (choixDeco[z.id] >= 0 && deco) parts.push(z.id + '=' + decoRef(choixDeco[z.id])); });
     parts.push('am=' + (amenActive === 'aucun' ? '0' : amenActive.slice(-1)));
     parts.push('lum=' + ambiance);
     history.replaceState(null, '', '#' + parts.join('&'));
   }
 
+  // ---------- déco murale
+  var deco = null, choixDeco = { P: -1, A: -1, DL: -1 }, decoActive = 'P', decoObjs = [], cacheDeco = {};
+  var DZ = [{ id: 'P', nom: 'Pilier', sm: '3 faces : 30 + 25 + 25 cm' }, { id: 'A', nom: "Mur de l'entrée", sm: 'à droite de la porte, 1,59 m' },
+            { id: 'DL', nom: 'Grand mur côté entrée', sm: '2,40 m, avant les meubles' }];
+  fetch('deco/deco.json?v=' + VERSION).then(function (r) { return r.json(); }).then(function (d) { deco = d; construireDeco(); appliquerDecoTout(); });
+
+  function decoRef(i) { return i < 0 ? 'aucun' : deco[i].ref; }
+  function construireDeco() {
+    if (!deco) return;
+    var bz = document.getElementById('deco-zones'); bz.innerHTML = '';
+    DZ.forEach(function (z) {
+      var b = document.createElement('button'); b.type = 'button'; b.className = 'chip';
+      b.setAttribute('aria-pressed', z.id === decoActive ? 'true' : 'false');
+      var t = document.createElement('span'); t.textContent = z.nom;
+      var sm = document.createElement('small'); sm.textContent = z.sm + ' · ' + decoRef(choixDeco[z.id]);
+      b.appendChild(t); b.appendChild(sm);
+      b.addEventListener('click', function () { decoActive = z.id; construireDeco(); });
+      bz.appendChild(b);
+    });
+    var bd = document.getElementById('deco-bande');
+    if (!bd.childElementCount) {
+      var b0 = document.createElement('button'); b0.type = 'button'; b0.className = 'tuile'; b0.id = 'deco-aucun';
+      b0.innerHTML = '<span class="aucun">aucun</span><span>sans</span>';
+      b0.addEventListener('click', function () { poserDeco(-1); }); bd.appendChild(b0);
+      deco.forEach(function (p, i) {
+        var b = document.createElement('button'); b.type = 'button'; b.className = 'tuile'; b.id = 'deco-' + p.ref; b.title = p.nom;
+        var im = document.createElement('img'); im.src = p.vignette; im.alt = p.ref; im.loading = 'lazy';
+        var t = document.createElement('span'); t.textContent = p.ref.replace('HDLBI', 'BI') + ' · ' + parseFloat(p.prix) + '€';
+        var l = document.createElement('span'); l.textContent = (p.type === 'acoustique' ? 'acoust. ' : '') + p.largeur_mm / 10 + ' cm';
+        b.appendChild(im); b.appendChild(t); b.appendChild(l);
+        b.addEventListener('click', function () { poserDeco(i); }); bd.appendChild(b);
+      });
+    }
+    document.querySelectorAll('#deco-bande .tuile').forEach(function (b) { b.setAttribute('aria-pressed', 'false'); });
+    var i = choixDeco[decoActive];
+    var tb = document.getElementById(i < 0 ? 'deco-aucun' : 'deco-' + deco[i].ref); if (tb) tb.setAttribute('aria-pressed', 'true');
+    var info = document.getElementById('deco-actuel'); info.innerHTML = '';
+    var z = DZ.filter(function (x) { return x.id === decoActive; })[0];
+    var s0 = document.createElement('strong'); s0.textContent = z.nom + ' :'; info.appendChild(s0);
+    if (i < 0) { var sp = document.createElement('span'); sp.textContent = 'rien'; info.appendChild(sp); return; }
+    var p = deco[i];
+    var s1 = document.createElement('span');
+    s1.textContent = p.nom + (p.coloris ? ' · ' + p.coloris : '') + ' · ' + p.largeur_mm / 10 + ' × 260 cm' + (p.largeur_supposee ? ' (largeur supposée)' : '') + ' · ' + p.prix.replace('.00', '') + ' la pièce';
+    var a = document.createElement('a'); a.href = p.url; a.target = '_blank'; a.rel = 'noopener'; a.textContent = 'Acheter sur homedesign59.fr ↗';
+    info.appendChild(s1); info.appendChild(a);
+  }
+
+  function poserDeco(i) {
+    choixDeco[decoActive] = i;
+    appliquerDeco(decoActive); construireDeco(); if (calep && liste) majPlan(); majHash();
+  }
+
+  function appliquerDecoTout() { DZ.forEach(function (z) { appliquerDeco(z.id); }); }
+
+  function appliquerDeco(zid) {
+    var i = choixDeco[zid];
+    if (!deco || i < 0) return;
+    var p = deco[i];
+    var go = function (t) {
+      if (choixDeco[zid] !== i) return;
+      var W = p.largeur_mm / 1000, PH = 2.6;
+      decoObjs.filter(function (o) { return o.userData.zone === zid; }).forEach(function (o) {
+        o.traverse(function (x) {
+          if (!x.isMesh) return;
+          var tx = t.clone();
+          tx.flipY = false; tx.encoding = THREE.sRGBEncoding; tx.wrapS = THREE.RepeatWrapping; tx.wrapT = THREE.ClampToEdgeWrapping;
+          tx.matrixAutoUpdate = false; tx.matrix.set(1 / W, 0, 0, 0, 1 / PH, (PH - 1) / PH, 0, 0, 1); tx.needsUpdate = true;
+          if (x.material.map) x.material.map.dispose();
+          x.material.map = tx; x.material.color.setHex(0xffffff); x.material.needsUpdate = true;
+        });
+      });
+    };
+    if (cacheDeco[p.ref]) go(cacheDeco[p.ref]); else texLoader.load(p.texture, function (t) { cacheDeco[p.ref] = t; go(t); });
+  }
+
+  function decoPlan(box, ligne) {
+    var somme = 0, parRef = {};
+    DZ.forEach(function (z) {
+      var i = choixDeco[z.id]; if (!deco || i < 0) return;
+      var p = deco[i], W = p.largeur_mm;
+      var bloc = document.createElement('div'); bloc.className = 'mur-pose';
+      var h = document.createElement('h3'); h.textContent = 'Déco · ' + z.nom + ' · ' + p.ref; bloc.appendChild(h);
+      var n = 0, txt = [];
+      decoObjs.filter(function (o) { return o.userData.zone === z.id; }).forEach(function (o) {
+        var L = o.userData.largeur_mm, k = Math.ceil(L / W - 0.01), reste = L - (k - 1) * W; n += k;
+        txt.push(cm(L) + ' cm de large : ' + k + ' pièce' + (k > 1 ? 's' : '') + (reste < W - 1 ? ' (la dernière recoupée à ' + cm(reste) + ' cm)' : ''));
+      });
+      var d = document.createElement('div'); d.className = 'fiche';
+      [['Produit', p.nom + (p.coloris ? ' · ' + p.coloris : '')], ['Taille d\'une pièce', cm(W) + ' × 260 cm' + (p.largeur_supposee ? ' (largeur supposée)' : '')],
+       ['Pose', txt.join(' ; ') + ' ; toutes recoupées en hauteur à ' + cm(calep.hauteur_posee_mm) + ' cm, collées verticalement'],
+       ['Prix', p.prix.replace('.00', '') + ' la pièce']].forEach(function (l) {
+        var r = document.createElement('div'); var k2 = document.createElement('span'); k2.className = 'k'; k2.textContent = l[0] + ' :';
+        var v = document.createElement('span'); v.textContent = ' ' + l[1]; r.appendChild(k2); r.appendChild(v); d.appendChild(r);
+      });
+      bloc.appendChild(d); box.appendChild(bloc);
+      var g = parRef[p.ref] = parRef[p.ref] || { p: p, n: 0 }; g.n += n;
+    });
+    Object.keys(parRef).forEach(function (r) {
+      var g = parRef[r], prix = parseFloat(g.p.prix) || 0;
+      somme += g.n * prix;
+      ligne((g.p.type === 'acoustique' ? 'Panneau acoustique ' : 'Tasseau ') + r + ' (' + cm(g.p.largeur_mm) + ' × 260 cm)', g.n + ' × ' + euros(prix), euros(g.n * prix), g.p.url);
+    });
+    return somme;
+  }
+
   function zoneVisible(o) {
+    if (/^Deco_/.test(o.name)) return choixDeco[o.userData.zone] !== undefined && choixDeco[o.userData.zone] >= 0;
     var z = o.userData.zone;
     if (!z) return true;
     return choix[z] !== undefined && choix[z] >= 0;
@@ -655,7 +772,8 @@ tr.somme td { font-weight: 600; }
       }
     });
     root.traverse(function (o) {
-      var v = /(?:^Vitre_mur_|^Panneaux_mur_|^Profil\S*_mur_)([A-Z])(?:_|$)/.exec(o.name);
+      var v = /(?:^Vitre_mur_|^Panneaux_mur_|^Profil\S*_mur_|^Deco_mur_)([A-Z])(?:_|$)/.exec(o.name);
+      if (/^Deco_mur_/.test(o.name)) decoObjs.push(o);
       if (v) murs.forEach(function (w) { if (w.lettre === v[1]) w.autres.push(o); });
     });
     window.cuisine3d = { calques: calques, pieces: pieces, profils: profils, choix: choix };
